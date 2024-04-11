@@ -3,6 +3,7 @@
 from telebot import TeleBot
 from telebot.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from webScraper.scraper import *
+from data_analyzer.data_analyzer import *
 from repository.players_repository import *
 import os
 from dotenv import load_dotenv
@@ -15,8 +16,14 @@ BOT_TOKEN = os.environ.get('TG_BOT_API_KEY')
 bot = TeleBot(BOT_TOKEN, parse_mode='HTML')
 
 repository = PlayerRepository()
+
+analyzer = DataAnalyzer()
+results = analyzer.search_players('Odegaard')
+
 scraper = Scraper('https://fbref.com/en/comps/9/stats/Premier-League-Stats', repository)
 scraper.generate_player_data("https://fbref.com/en/players/20b104bc/Adam-Smith")
+
+
 
 FOOTBALL_PLAYERS = [
     {
