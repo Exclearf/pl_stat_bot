@@ -10,14 +10,15 @@ def generate_file_details(player_url):
     name_part = player_url.rsplit('/', 1)[-1]
     return f'../resources/data/parsed_players/{name_part}/',\
         f'../resources/data/parsed_players/{name_part}/' + name_part + ".json",\
-        f'../resources/data/parsed_players/{name_part}/' + name_part + ".jpeg"
+        f'../resources/data/parsed_players/{name_part}/' + name_part + ".jpeg",\
+        f'../resources/data/parsed_players/{name_part}/' + name_part + '_wiki' + ".jpeg"
 
 
 class PlayerRepository:
     def exists(self, player_url):
         directory_filepath, data_filepath, *_ = generate_file_details(player_url)
 
-        if os.path.exists(directory_filepath):
+        if os.path.exists(''.join(directory_filepath.split('/').pop())):
             modification_time = os.path.getmtime(data_filepath)
             current_time = time.time()
             one_hour_ago = current_time - (1 * 3600)
@@ -53,8 +54,8 @@ class PlayerRepository:
             # write multiple rows
             writer.writerows(data)
 
-    def write_data(self, player_url, player_data, player_img_base64):
-        directory_filepath, data_filepath, img_data_filepath = generate_file_details(player_url)
+    def write_data(self, player_url, player_data, player_img_base64, elem):
+        directory_filepath, data_filepath, img_data_filepath, elem_path = generate_file_details(player_url)
 
         if not os.path.exists(directory_filepath):
             os.makedirs(directory_filepath)
@@ -64,5 +65,8 @@ class PlayerRepository:
 
         with open(img_data_filepath, "wb") as fh:
             fh.write(base64.decodebytes(player_img_base64.encode('utf-8')))
+
+        with open(elem_path, "wb") as fh:
+            fh.write(base64.decodebytes(elem.encode('utf-8')))
 
         return
