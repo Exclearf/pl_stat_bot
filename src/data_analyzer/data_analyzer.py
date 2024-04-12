@@ -1,11 +1,13 @@
 import csv
 import re
 from unidecode import unidecode
+from ..webScraper.scraper import *
+
 
 
 class DataAnalyzer:
     def __init__(self):
-        self.csv_file_path = "../../resources/data/players_data.csv"
+        self.csv_file_path = "../resources/data/players_data.csv"
 
     def search_players(self, partial_name):
         found_players = []
@@ -18,14 +20,9 @@ class DataAnalyzer:
             for row in csv_reader:
                 row['name'] = unidecode(row['name'])
                 if name_pattern.search(row['name']):
-                    found_players.append({'name': row['name'], 'url': row['url']})
+                    found_players.append([row['name'], row['url']])
 
         if not found_players:
             return({'name': 'No players found matching the provided partial name.', 'url': ''})
 
         return found_players
-
-
-analyzer = DataAnalyzer()
-results = analyzer.search_players('Odegaard')
-print(results)

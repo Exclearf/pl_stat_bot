@@ -20,8 +20,11 @@ repository = PlayerRepository()
 analyzer = DataAnalyzer()
 results = analyzer.search_players('Odegaard')
 
+
 scraper = Scraper('https://fbref.com/en/comps/9/stats/Premier-League-Stats', repository)
-scraper.generate_player_data("https://fbref.com/en/players/20b104bc/Adam-Smith")
+scraper.generate_player_data("https://fbref.com/en/players/907a5d7c/Adam-Smith")
+
+
 
 
 
