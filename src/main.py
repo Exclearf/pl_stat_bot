@@ -18,14 +18,15 @@ bot = TeleBot(BOT_TOKEN, parse_mode='HTML')
 repository = PlayerRepository()
 
 analyzer = DataAnalyzer()
-player_data = analyzer.search_players('Adam Smith')
-
+player_data = analyzer.search_players('Odegaard')
+print(player_data[0][0], player_data[0][1])
 
 scraper = Scraper('https://fbref.com/en/comps/9/stats/Premier-League-Stats', repository)
-scraper.generate_player_data("https://fbref.com/en/players/20b104bc/Adam-Smith")
-data = DataAnalyzer().get_player_data(player_data[0][0])
-DataAnalyzer().player_graph_attack(data)
-DataAnalyzer().player_graph_defence(data)
+
+scraper.generate_player_data(player_data[0][1])
+data = analyzer.get_player_data(player_data[0][0])
+print(data)
+analyzer.player_graph_standard(data)
 
 
 
