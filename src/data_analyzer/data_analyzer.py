@@ -50,7 +50,7 @@ class DataAnalyzer:
             return data
 
 
-    def player_graph_attack(self, player_data):
+    def player_graph_standard(self, player_data):
         seasons = []
         goals_scored = []
         assists_made = []
@@ -60,8 +60,16 @@ class DataAnalyzer:
         index = 0
         for season, stats in player_data["all_stats_standard"].items():
             seasons.append(season)
-            goals_scored.append(int(stats["goals"]))
-            assists_made.append(int(stats["assists"]))
+            if stats['goals'] == "":
+                goals_scored.append(0)
+            else:
+                goals_scored.append(int(stats["goals"]))
+
+            if stats['assists'] == "":
+                assists_made.append(0)
+            else:
+                assists_made.append(int(stats["assists"]))
+
             performance = stats.get("performance", {})
 
             # count the number of seasons with xG introduced
@@ -100,34 +108,10 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         #save the graph to the player dir
-        path = DataAnalyzer().player_path(player_data["name"]) + '-attack-graph.png'
+        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-graph.png'
         plt.savefig(path)
         plt.show()
 
-    def player_graph_defence(self, player_data):
-        seasons = []
-        yellow_cards = []
-        red_cards = []
-        for season, stats in player_data["all_stats_standard"].items():
-            seasons.append(season)
-            cards = stats.get("cards", {})
-            yellow_cards.append(int(cards.get("yellow", "0")))
-            red_cards.append(int(cards.get("red", "0")))
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(seasons, yellow_cards, linewidth=5, color='yellow', linestyle='-', label='Yellow Cards')
-        plt.plot(seasons, red_cards, linewidth=5, color='red', linestyle='-', label='Red Cards')
-
-        plt.grid(linestyle='-')
-        plt.title("Cards")
-        plt.xlabel("Season")
-        plt.ylabel("Cards")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.legend()
-        path = DataAnalyzer().player_path(player_data["name"]) + '-defence-graph.png'
-        plt.savefig(path)
-        plt.show()
 
 #repository = PlayerRepository()
 #analyzer = DataAnalyzer()
