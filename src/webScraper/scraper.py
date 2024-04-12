@@ -37,16 +37,25 @@ class Scraper:
 
         player["name"] = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/h1/span').text
 
-        player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
-        player["position"] = player_characteristics[0].split(': ')[1].strip()
-        player["footed"] = player_characteristics[1].split(': ')[1].strip()
-
         full_name = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]/strong').text
 
         player_img_base64 = driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
 
         if len(full_name.split(' ')) > 1:
+            player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
+            player["position"] = player_characteristics[0].split(': ')[1].strip()
+            player["footed"] = player_characteristics[1].split(': ')[1].strip()
             player["fullName"] = full_name
+        else:
+            try:
+                player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text.split(' ▪  ')
+                if len(player_characteristics) > 0:
+                    player["position"] = player_characteristics[0].split(': ')[1].strip()
+                if len(player_characteristics) > 1:
+                    player["footed"] = player_characteristics[1].split(': ')[1].strip()
+            except:
+                player["position"] = ''
+                player["footed"] = ''
 
         id_to_parse = [
             "all_stats_standard",
@@ -99,7 +108,7 @@ class Scraper:
         m.send_keys(Keys.ENTER)
         time.sleep(0.2)
 
-        results = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[2]/div[*]/ul/li[1]/table/tbody/tr/td['
+        results = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
                                                 '2]/div[1]/a')
         results.click()
         time.sleep(0.2)
