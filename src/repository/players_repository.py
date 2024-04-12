@@ -66,7 +66,8 @@ class PlayerRepository:
         with open(img_data_filepath, "wb") as fh:
             fh.write(base64.decodebytes(player_img_base64.encode('utf-8')))
 
-        with open(elem_path, "wb") as fh:
-            fh.write(base64.decodebytes(elem.encode('utf-8')))
+        if elem:
+            with open(elem_path, "wb") as fh:
+                fh.write(base64.decodebytes(elem.encode('utf-8')))
 
         return
