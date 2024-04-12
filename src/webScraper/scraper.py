@@ -86,8 +86,11 @@ class Scraper:
         # Get description as well as remove [1] etc
         player["shortDescription"] = re.sub(r'\[\d+]', '', driver.find_element(By.XPATH, '//*[@id="mw-content-text'
                                                                                          '"]/div[1]/p[2]').text)
-
-        elem = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[1]/td/span/a/img').screenshot_as_base64;
+        elem = None
+        try:
+            elem = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[1]/td/span/a/img').screenshot_as_base64;
+        except:
+            elem = None
         self.player_repository.write_data(player_url, player, player_img_base64, elem)
         return player
 
