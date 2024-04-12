@@ -49,6 +49,18 @@ class DataAnalyzer:
             data = json.load(file)
             return data
 
+    def player_basic_data(self, player_data):
+        player_basic_data = []
+        season_2023_2024 = player_data["all_stats_standard"]["2023-2024"]
+        player_basic_data.append([player_data["name"]])
+        player_basic_data.append([player_data["position"]])
+        player_basic_data.append([player_data["footed"]])
+        player_basic_data.append([player_data["shortDescription"]])
+        player_basic_data.append([season_2023_2024["squad"]])
+        player_basic_data.append([season_2023_2024["leagueRank"]])
+        player_basic_data.append([season_2023_2024["age"]])
+
+        return player_basic_data
 
     def player_graph_standard(self, player_data):
         seasons = []
