@@ -62,6 +62,11 @@ class DataAnalyzer:
 
         return player_basic_data
 
+    def player_years(self, player_data):
+        player_years = []
+        player_years = player_data["standard_stats"]
+        return(list(player_years))
+
     def player_graph_standard(self, player_data):
         seasons = []
         goals_scored = []
@@ -131,3 +136,4 @@ class DataAnalyzer:
 
 #data = DataAnalyzer().get_player_data(results[0][0])
 #DataAnalyzer().player_graph_attack(data)
+#print(analyzer.player_years())
