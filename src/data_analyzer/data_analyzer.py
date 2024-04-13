@@ -50,15 +50,22 @@ class DataAnalyzer:
             return data
 
     def player_basic_data(self, player_data):
-        player_basic_data = []
+
+        player_basic_data = {}
         season_2023_2024 = player_data["standard_stats"]["2023-2024"]
-        player_basic_data.append([player_data["name"]])
-        player_basic_data.append([player_data["position"]])
-        player_basic_data.append([player_data["footed"]])
-        player_basic_data.append([player_data["shortDescription"]])
-        player_basic_data.append([season_2023_2024["squad"]])
-        player_basic_data.append([season_2023_2024["leagueRank"]])
-        player_basic_data.append([season_2023_2024["age"]])
+        try:
+            player_basic_data["fullName"] = player_data["fullName"]
+        except:
+            player_basic_data["fullName"] = player_data["name"]
+        player_basic_data["nationality"] = player_data["nationality"]
+        player_basic_data["position"] = player_data["position"]
+        player_basic_data["footed"] = player_data["footed"]
+        player_basic_data["shortDescription"] = player_data["shortDescription"]
+        player_basic_data["squad"] = season_2023_2024["squad"]
+        player_basic_data["leagueRank"] = season_2023_2024["leagueRank"]
+        player_basic_data["age"] = season_2023_2024["age"]
+        player_basic_data["goals"] = season_2023_2024["performance"]["goals"]
+        player_basic_data["assists"] = season_2023_2024["performance"]["assists"]
 
         return player_basic_data
 
@@ -134,6 +141,7 @@ class DataAnalyzer:
 #analyzer = DataAnalyzer()
 #results = analyzer.search_players('Adam Smith')
 
-#data = DataAnalyzer().get_player_data(results[0][0])
+#data = DataAnalyzer().get_player_data('Ben Mee')
+#print(analyzer.player_basic_data(data))
 #DataAnalyzer().player_graph_attack(data)
 #print(analyzer.player_years())
