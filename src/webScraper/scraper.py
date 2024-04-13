@@ -20,7 +20,7 @@ class Scraper:
     def __init__(self, reference_site_url, player_repository):
         self.referenceUrl = reference_site_url
         self.player_repository = player_repository
-        # self.__prepare_dataset()
+        self.__prepare_dataset()
 
     def generate_player_data(self, player_url):
         if self.player_repository.exists(player_url) and False:
@@ -41,11 +41,13 @@ class Scraper:
 
         full_name = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text
 
-        player['nationality'] = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[4]/span[3]').text.split(', ')[-1].strip()
-
+        try:
+            player['nationality'] = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[4]/span[3]').text.split(', ')[-1].replace('in', '').strip()
+        except:
+            player['nationality'] = ''
         player_img_base64 = driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
 
-        if len(full_name.split(' ')) > 1:
+        if full_name.find(player["name"].split(' ')[0]) != -1:
             player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
             player["position"] = player_characteristics[0].split(': ')[1].strip()
             player["footed"] = player_characteristics[1].split(': ')[1].strip()
@@ -110,7 +112,7 @@ class Scraper:
         # Parse the document into result[]
         links = driver.find_elements(By.XPATH, '//*[@id="stats_standard"]/tbody/tr[*]/td[1]/a')
         for link in links:
-            data.append([link.text, link.get_attribute("href")])
+            data.append([link.text, link.get_attribute("href").replace('https://fbref.com/en/players/', '')])
 
         self.player_repository.write_dataset(header, data)
 

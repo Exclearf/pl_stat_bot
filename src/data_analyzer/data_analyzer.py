@@ -51,7 +51,7 @@ class DataAnalyzer:
 
     def player_basic_data(self, player_data):
         player_basic_data = []
-        season_2023_2024 = player_data["all_stats_standard"]["2023-2024"]
+        season_2023_2024 = player_data["standard_stats"]["2023-2024"]
         player_basic_data.append([player_data["name"]])
         player_basic_data.append([player_data["position"]])
         player_basic_data.append([player_data["footed"]])
@@ -70,7 +70,7 @@ class DataAnalyzer:
         exp_assists = []
         seasons_with_xG = []
         index = 0
-        for season, stats in player_data["all_stats_standard"].items():
+        for season, stats in player_data["standard_stats"].items():
             seasons.append(season)
             if stats['goals'] == "":
                 goals_scored.append(0)
