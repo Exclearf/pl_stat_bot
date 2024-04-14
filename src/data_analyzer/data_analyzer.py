@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib as mpl
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from PIL import Image
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from src.webScraper.scraper import *
@@ -100,7 +101,31 @@ class DataAnalyzer:
         player_seasons_years.append('all')
         return player_seasons_years
 
+    # if CreationDate(graph) > creationDate(json) -> new graph
+    def check_graphs_age(self, player_name, graph_type, graph_name):
+        player_data_filepath = '../resources/data/parsed_players/' + player_name + '/'
+        if os.path.exists(player_data_filepath):
+            data = self.get_player_data(player_name)
+            ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
+            c_ti = datetime.fromtimestamp(ti_c)
+
+            with open(player_data_filepath + player_name + '.json', 'rb') as file:
+                if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
+                    return True
+                else:
+                    return False
+        else:
+            return False
+
+
+########################################################################################################################
+#                                                        GRAPHS                                                        #
+########################################################################################################################
+
     def player_graph_standard_ga(self, player_name):
+
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='standard', graph_name='ga'):
+            return
         player_data = DataAnalyzer().get_player_data(player_name)
         seasons = []
         goals_scored = []
@@ -166,6 +191,8 @@ class DataAnalyzer:
         return DataAnalyzer().path_for_btn(path)
 
     def player_graph_standard_cards(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='standard', graph_name='cards'):
+            return
         player_data = DataAnalyzer().get_player_data(player_name)
         red_cards = []
         yellow_cards = []
@@ -206,7 +233,10 @@ class DataAnalyzer:
         plt.show()
         return DataAnalyzer().path_for_btn(path)
 
+    #goals-expected goals
     def player_graph_shooting(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='shots', graph_name='shots'):
+            return
         player_data = DataAnalyzer().get_player_data(player_name)
         shots = []
         goals_scored = []
@@ -273,6 +303,8 @@ class DataAnalyzer:
         return DataAnalyzer().path_for_btn(path)
 
     def player_graph_passing_assists(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='passing', graph_name='assists'):
+            return
         player_data = DataAnalyzer().get_player_data(player_name)
 
         assists_made = []
@@ -327,6 +359,8 @@ class DataAnalyzer:
         return DataAnalyzer().path_for_btn(path)
 
     def player_graph_passing_distance(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='passing', graph_name='passes'):
+            return
         player_data = DataAnalyzer().get_player_data(player_name)
         short_att = []
         short_com = []
@@ -390,9 +424,6 @@ class DataAnalyzer:
         plt.show()
         return DataAnalyzer().path_for_btn(path)
 
-
-    #if CreationDate(graph) > creationDate(json) -> new graph
-
 '''
 options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
@@ -414,6 +445,5 @@ print(analyzer.player_graph_shooting('Kevin De Bruyne'))
 
 
 #driver.quit()
-
 
 '''
