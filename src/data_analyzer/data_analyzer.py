@@ -190,6 +190,73 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
 
+    def player_graph_shooting(self, player_data):
+        shots = []
+        goals_scored = []
+        shotsOnTarget = []
+        exp_goals = []
+        seasons_with_xG = []
+        seasons = []
+        index = 0
+
+        for season, stats in player_data["standard_stats"].items():
+            seasons.append(season)
+
+            if stats['performance']['goals'] == "":
+                goals_scored.append(0)
+            else:
+                goals_scored.append(int(stats['performance']["goals"]))
+
+            performance = stats.get("performance", {})
+
+            # count the number of seasons with xG introduced
+            if performance.get("expectedGoals") != "":
+                seasons_with_xG.append(season)
+            else:
+                index += 1
+
+            expected_goals_str = performance.get("expectedGoals", "0")
+            exp_goals.append(float(expected_goals_str) if expected_goals_str else 0.0)
+
+        for season, stats in player_data["shooting_stats"].items():
+
+            if stats['performance']['shots'] == "":
+                shots.append(0)
+            else:
+                shots.append(int(stats['performance']['shots']))
+
+            if stats['performance']['shotsOnTarget'] == "":
+                shotsOnTarget.append(0)
+            else:
+                shotsOnTarget.append(int(stats['performance']['shotsOnTarget']))
+
+        print(exp_goals)
+        plt.figure(figsize=(10, 6))
+        plt.plot(seasons, goals_scored, linewidth=5, color='green', linestyle='-', label='Goals Scored')
+        plt.plot(seasons, shots, linewidth=5, color='yellow', linestyle='-', label='Shots')
+        plt.plot(seasons, shotsOnTarget, linewidth=5, color='purple', linestyle='-', label='On Target')
+
+
+        exp_goals = exp_goals[index:len(seasons)]
+        plt.plot(seasons_with_xG, exp_goals, linewidth=5, alpha=0.3, color='green', linestyle='-', label='Expected Goals')
+
+        # Add a grid
+        plt.grid(linestyle='-')
+        # Desc
+        plt.title("Shot stats by season")
+        plt.xlabel("Season")
+        plt.ylabel("Stats")
+        # rotate desc
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.legend()
+        # save the graph to the player dir
+        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-shoots-graph.png'
+        plt.savefig(path)
+        plt.show()
+
+
+
 '''
 options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
@@ -199,12 +266,13 @@ driver = webdriver.Chrome(options=options)
 scraper = Scraper(repository, webdriver.Chrome())
 scraper.prepare_dataset()
 analyzer = DataAnalyzer()
-results = analyzer.search_players('ga')
+results = analyzer.search_players('haaland')
 scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
-analyzer.player_graph_standard_cards(data)
 analyzer.player_graph_standard_ga(data)
+analyzer.player_graph_standard_cards(data)
+analyzer.player_graph_shooting(data)
 
 driver.quit()
 '''
