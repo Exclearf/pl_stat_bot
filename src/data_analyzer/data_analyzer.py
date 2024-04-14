@@ -95,7 +95,8 @@ class DataAnalyzer:
         player_seasons_years.append('all')
         return player_seasons_years
 
-    def player_graph_standard_ga(self, player_data):
+    def player_graph_standard_ga(self, player_name):
+        player_data = DataAnalyzer().get_player_data(player_name)
         seasons = []
         goals_scored = []
         assists_made = []
@@ -155,11 +156,11 @@ class DataAnalyzer:
         plt.legend()
         #save the graph to the player dir
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'ga-graph.png')
-        print(path)
         plt.savefig(path)
         plt.show()
 
-    def player_graph_standard_cards(self, player_data):
+    def player_graph_standard_cards(self, player_name):
+        player_data = DataAnalyzer().get_player_data(player_name)
         red_cards = []
         yellow_cards = []
         seasons = []
@@ -198,7 +199,8 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
 
-    def player_graph_shooting(self, player_data):
+    def player_graph_shooting(self, player_name):
+        player_data = DataAnalyzer().get_player_data(player_name)
         shots = []
         goals_scored = []
         shotsOnTarget = []
@@ -238,7 +240,6 @@ class DataAnalyzer:
             else:
                 shotsOnTarget.append(int(stats['performance']['shotsOnTarget']))
 
-        print(exp_goals)
         plt.figure(figsize=(10, 6))
         plt.plot(seasons, goals_scored, linewidth=5, color='green', linestyle='-', label='Goals Scored')
         plt.plot(seasons, shots, linewidth=5, color='yellow', linestyle='-', label='Shots')
@@ -263,7 +264,9 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
 
-    def player_graph_passing_assists(self, player_data):
+    def player_graph_passing_assists(self, player_name):
+        player_data = DataAnalyzer().get_player_data(player_name)
+
         assists_made = []
         exp_assists = []
         seasons_with_xG = []
@@ -314,8 +317,8 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
 
-    def player_graph_passing_distance(self, player_data):
-
+    def player_graph_passing_distance(self, player_name):
+        player_data = DataAnalyzer().get_player_data(player_name)
         short_att = []
         short_com = []
         short_eff = []
@@ -350,17 +353,15 @@ class DataAnalyzer:
             long_att.append(get_passes_stats(performance, "longPasses")[0])
             long_com.append(get_passes_stats(performance, "longPasses")[1])
 
-            short_eff.append(round(short_com[-1] / short_att[-1], 2))
-            mid_eff.append(round(mid_com[-1] / mid_att[-1], 2))
-            long_eff.append(round(long_com[-1] / long_att[-1], 2))
+            short_eff.append(round(short_com[-1] / short_att[-1], 2) * 100)
+            mid_eff.append(round(mid_com[-1] / mid_att[-1], 2) * 100)
+            long_eff.append(round(long_com[-1] / long_att[-1], 2) * 100)
 
         zero_count = short_eff.count(0.0)
         short_eff = short_eff[zero_count:]
         mid_eff = mid_eff[zero_count:]
         long_eff = long_eff[zero_count:]
         seasons_with_distance = seasons[zero_count:]
-        print(seasons)
-        print(seasons_with_distance)
 
         plt.figure(figsize=(10, 6))
         plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green',  label='Short')
@@ -371,8 +372,8 @@ class DataAnalyzer:
         plt.grid(linestyle='-')
         plt.title("Passes Efficiency by Season")
         plt.xlabel("Season")
-        plt.ylabel("Passes Efficiency")
-        plt.ylim(0, 1)
+        plt.ylabel("Passes Efficiency, %")
+        plt.ylim(0, 100)
         plt.xticks(rotation=45)
         plt.tight_layout()
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'passes-graph.png')
@@ -381,7 +382,6 @@ class DataAnalyzer:
 
 
     #if CreationDate(graph) > creationDate(json) -> new graph
-
 
 '''
 options = Options()
@@ -395,11 +395,11 @@ results = analyzer.search_players('de br')
 #scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
-analyzer.player_graph_standard_ga(data)
-analyzer.player_graph_standard_cards(data)
-analyzer.player_graph_passing_distance(data)
-analyzer.player_graph_passing_assists(data)
-analyzer.player_graph_shooting(data)
+analyzer.player_graph_standard_ga('Kevin De Bruyne')
+analyzer.player_graph_standard_cards('Kevin De Bruyne')
+analyzer.player_graph_passing_distance('Kevin De Bruyne')
+analyzer.player_graph_passing_assists('Kevin De Bruyne')
+analyzer.player_graph_shooting('Kevin De Bruyne')
 
 #driver.quit()
 '''
