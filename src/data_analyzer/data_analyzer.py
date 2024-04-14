@@ -6,10 +6,13 @@ from unidecode import unidecode
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib as mpl
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from src.webScraper.scraper import *
 from src.repository.players_repository import *
+repository = PlayerRepository()
 
 
 class DataAnalyzer:
@@ -29,12 +32,7 @@ class DataAnalyzer:
                 row['name'] = unidecode(row['name'])
                 if name_pattern.search(row['name']):
                     found_players.append([row['name'], row['url']])
-
-        if not found_players:
-            return ({'name': 'No players found matching the provided partial name.', 'url': ''})
-
         return found_players
-
 
     #name -> path for easier movements
     def player_path(self, player_name):
@@ -59,7 +57,10 @@ class DataAnalyzer:
             player_basic_data["fullName"] = player_data["name"]
         player_basic_data["nationality"] = player_data["nationality"]
         player_basic_data["position"] = player_data["position"]
-        player_basic_data["footed"] = player_data["footed"]
+        try:
+            player_basic_data["footed"] = player_data["footed"]
+        except:
+            player_basic_data["footed"] = ''
         player_basic_data["shortDescription"] = player_data["shortDescription"]
         player_basic_data["squad"] = season_2023_2024["squad"]
         player_basic_data["leagueRank"] = season_2023_2024["leagueRank"]
@@ -69,10 +70,23 @@ class DataAnalyzer:
 
         return player_basic_data
 
+    def player_season_data(self, player_name, season):
+        data = DataAnalyzer().get_player_data(player_name)['standard_stats'][season]
+        season_data = {}
+        season_data['season'] = season
+        season_data['age'] = data['age']
+        season_data['squad'] = data['squad']
+        season_data['leagueRank'] = data['leagueRank']
+        season_data['goals'] = data['performance']['goals']
+        season_data['assists'] = data['performance']['assists']
+        return season_data
+
     def player_years(self, player_data):
         player_years = []
         player_years = player_data["standard_stats"]
-        return(list(player_years))
+        player_seasons_years = list(player_years)
+        player_seasons_years.append('all')
+        return player_seasons_years
 
     def player_graph_standard(self, player_data):
         seasons = []
@@ -136,12 +150,20 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
 
-
-#repository = PlayerRepository()
+#options = Options()
+#user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+#options.add_argument(f"user-agent={user_agent_string}")
+#options.add_argument("window-size=1920,1080")
+#driver = webdriver.Chrome(options=options)
+#scraper = Scraper(repository, webdriver.Chrome())
+##scraper.prepare_dataset()
 #analyzer = DataAnalyzer()
-#results = analyzer.search_players('Adam Smith')
+#results = analyzer.search_players('Zinch')
+#scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
-#data = DataAnalyzer().get_player_data('Ben Mee')
-#print(analyzer.player_basic_data(data))
+#data = analyzer.get_player_data(results[0][0])
+
+#print(analyzer.player_season_data(results[0][0], '2021-2022'))
 #DataAnalyzer().player_graph_attack(data)
 #print(analyzer.player_years())
+#driver.quit()
