@@ -13,6 +13,7 @@ sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from src.webScraper.scraper import *
 from src.repository.players_repository import *
 repository = PlayerRepository()
+plt.style.use('dark_background')
 
 
 class DataAnalyzer:
@@ -38,6 +39,12 @@ class DataAnalyzer:
     def player_path(self, player_name):
         changed_player_name = player_name.replace(' ', '-')
         path = '../resources/data/parsed_players/' + changed_player_name + '/' + changed_player_name
+        return path
+    def graph_path(self, player_name, graph_type, graph_name):
+        changed_player_name = player_name.replace(' ', '-')
+        dir = '../resources/data/parsed_players/' + changed_player_name + '/' + "graph" + "/" + graph_type
+        os.makedirs(dir, exist_ok=True)
+        path = dir + '/' + graph_name
         return path
 
     #Get data from json created by scraper
@@ -147,7 +154,8 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         #save the graph to the player dir
-        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-ga-graph.png'
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'ga-graph.png')
+        print(path)
         plt.savefig(path)
         plt.show()
 
@@ -186,7 +194,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-cards-graph.png'
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'cards-graph.png')
         plt.savefig(path)
         plt.show()
 
@@ -251,10 +259,128 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-shoots-graph.png'
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'shots', 'shots-graph.png')
         plt.savefig(path)
         plt.show()
 
+    def player_graph_passing_assists(self, player_data):
+        assists_made = []
+        exp_assists = []
+        seasons_with_xG = []
+        seasons = []
+        index = 0
+
+        #get the xA and Assists
+        for season, stats in player_data["standard_stats"].items():
+            seasons.append(season)
+            if stats['performance']['assists'] == "":
+                assists_made.append(0)
+            else:
+                assists_made.append(int(stats['performance']["assists"]))
+
+            performance = stats.get("performance", {})
+
+            # count the number of seasons with xG introduced
+            if performance.get("expectedGoals") != "":
+                seasons_with_xG.append(season)
+            else:
+                index += 1
+
+            expected_assists_str = performance.get("expectedAssists", "0")
+            exp_assists.append(float(expected_assists_str) if expected_assists_str else 0.0)
+
+        plt.figure(figsize=(10, 6))
+
+        plt.plot(seasons, assists_made, linewidth=5, color='green', linestyle='-', label='Assists Made')
+
+        # exclude data that doesnt suit the seasons_with_xG
+        exp_assists = exp_assists[index:len(seasons)]
+
+        # Only plots for seasons with xG
+        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-', label='Expected Assists')
+
+        # Add a grid
+        plt.grid(linestyle='-')
+        # Desc
+        plt.title("Assists and passes by season")
+        plt.xlabel("Season")
+        plt.ylabel("Stats")
+        # rotate desc
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.legend()
+        # save the graph to the player dir
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'assists-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+    def player_graph_passing_distance(self, player_data):
+
+        short_att = []
+        short_com = []
+        short_eff = []
+
+        mid_att = []
+        mid_com = []
+        mid_eff = []
+
+        long_att = []
+        long_com = []
+        long_eff = []
+
+        seasons_with_distance = []
+        seasons = []
+
+        def get_passes_stats(stats, pass_type):
+            passes = stats.get("passes", {}).get(pass_type, {})
+            attempted = passes.get("attempted", "0")
+            completed = passes.get("completed", "0")
+            # Convert empty strings to 0
+            attempted = int(attempted) if attempted else 1
+            completed = int(completed) if completed else 0
+            return attempted, completed
+
+        for season, stats in player_data["passing_stats"].items():
+            seasons.append(season)
+            performance = stats.get("performance", {})
+            short_att.append(get_passes_stats(performance, "shortPasses")[0])
+            short_com.append(get_passes_stats(performance, "shortPasses")[1])
+            mid_att.append(get_passes_stats(performance, "mediumPasses")[0])
+            mid_com.append(get_passes_stats(performance, "mediumPasses")[1])
+            long_att.append(get_passes_stats(performance, "longPasses")[0])
+            long_com.append(get_passes_stats(performance, "longPasses")[1])
+
+            short_eff.append(round(short_com[-1] / short_att[-1], 2))
+            mid_eff.append(round(mid_com[-1] / mid_att[-1], 2))
+            long_eff.append(round(long_com[-1] / long_att[-1], 2))
+
+        zero_count = short_eff.count(0.0)
+        short_eff = short_eff[zero_count:]
+        mid_eff = mid_eff[zero_count:]
+        long_eff = long_eff[zero_count:]
+        seasons_with_distance = seasons[zero_count:]
+        print(seasons)
+        print(seasons_with_distance)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green',  label='Short')
+        plt.plot(seasons_with_distance, mid_eff, linewidth=5, color='red', label='Medium')
+        plt.plot(seasons_with_distance, long_eff, linewidth=5, color='blue', label='Long')
+
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Passes Efficiency by Season")
+        plt.xlabel("Season")
+        plt.ylabel("Passes Efficiency")
+        plt.ylim(0, 1)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'passes-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+
+    #if CreationDate(graph) > creationDate(json) -> new graph
 
 
 '''
@@ -262,17 +388,18 @@ options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
 options.add_argument(f"user-agent={user_agent_string}")
 options.add_argument("window-size=1920,1080")
-driver = webdriver.Chrome(options=options)
+#driver = webdriver.Chrome(options=options)
 scraper = Scraper(repository, webdriver.Chrome())
-scraper.prepare_dataset()
 analyzer = DataAnalyzer()
-results = analyzer.search_players('haaland')
-scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
+results = analyzer.search_players('de br')
+#scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
 analyzer.player_graph_standard_ga(data)
 analyzer.player_graph_standard_cards(data)
+analyzer.player_graph_passing_distance(data)
+analyzer.player_graph_passing_assists(data)
 analyzer.player_graph_shooting(data)
 
-driver.quit()
+#driver.quit()
 '''
