@@ -1,67 +1,73 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from unidecode import unidecode
 import time
 import re
-
-options = Options()
-user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 ' \
-                    'Safari/537.36'
-options.add_argument("--headless")
-options.add_argument(f"user-agent={user_agent_string}")
-options.add_argument("window-size=1920,1080")
-driver = webdriver.Chrome(options=options)
+from datetime import datetime
 
 
 class Scraper:
-
-    def __init__(self, reference_site_url, player_repository):
-        self.referenceUrl = reference_site_url
-        self.player_repository = player_repository
-        self.__prepare_dataset()
+    def __init__(self, repo, driver):
+        self.driver = None
+        self.player_repository = repo
+        self.driver = driver
 
     def generate_player_data(self, player_url):
-        if self.player_repository.exists(player_url) and False:
-            # File exists, read it and return its content as a dictionary
-            return self.player_repository.get_player_data(player_url)
-
         player = dict()
 
+        player['creationDate'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         # Go to player page
-        driver.get(player_url)
-
-        cookies_button = driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
-        if cookies_button:
+        self.driver.get(player_url)
+        try:
+            cookies_button = self.driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
             cookies_button.click()
+        except:
+            print("No cookie button found")
 
-        player["name"] = unidecode(driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/h1/span').text)
+        player["name"] = unidecode(self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/h1/span').text)
         player["asciiName"] = unidecode(player["name"])
 
-        full_name = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text
+        full_name = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text
 
         try:
-            player['nationality'] = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[4]/span[3]').text.split(', ')[-1].replace('in', '').strip()
+            player['nationality'] = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[4]/span[3]').text.split(', ')[-1].replace('in ', '').strip()
         except:
-            player['nationality'] = ''
-        player_img_base64 = driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
+            try:
+                player['nationality'] = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[3]/span[3]').text.split(', ')[-1].replace('in ', '').strip()
+            except:
+                player['nationality'] = ''
 
+        try:
+            player_img_base64 = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
+        except:
+            print(f'Reference image found for {player["name"]}')
         if full_name.find(player["name"].split(' ')[0]) != -1:
-            player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
+            player_characteristics = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
             player["position"] = player_characteristics[0].split(': ')[1].strip()
-            player["footed"] = player_characteristics[1].split(': ')[1].strip()
+            if len(player_characteristics) > 1:
+                player["footed"] = player_characteristics[1].split(': ')[1].strip()
             player["fullName"] = full_name
         else:
             try:
-                player_characteristics = driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text.split(' ▪  ')
-                if len(player_characteristics)  > 0:
+                player_characteristics = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text.split(' ▪  ')
+                if len(player_characteristics) > 0:
                     player["position"] = player_characteristics[0].split(': ')[1].strip()
                 if len(player_characteristics) > 1:
                     player["footed"] = player_characteristics[1].split(': ')[1].strip()
             except:
                 player["position"] = ''
                 player["footed"] = ''
+
+        try:
+            rows = self.driver.find_elements(By.XPATH, '//*[@id="meta"]/div[2]/p')
+            for row_text in rows.text:
+                if 'Club' in row_text:
+                    player['club'] = row_text.split(': ')[-1]
+            player['club'] = ''
+        except:
+            player['club'] = ''
+
         if player["position"] != 'GK':
             player["standard_stats"] = self.parse_standard_stats()
             player["shooting_stats"] = self.parse_shooting_stats()
@@ -71,32 +77,32 @@ class Scraper:
             player['all_stats_goals1'] = self.all_stats_goals1()
 
         # Go to wiki for short bio
-        driver.get("https://www.wikipedia.org/")
+        self.driver.get("https://www.wikipedia.org/")
 
-        m = driver.find_element(By.XPATH, '//*[@id="searchInput"]')
+        m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
         m.click()
         m.send_keys(player.get("fullName", player["name"]) + ' footballer')
         time.sleep(0.2)
         m.send_keys(Keys.ENTER)
         time.sleep(0.2)
 
-        results = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
+        results = self.driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
                                                 '2]/div[1]/a')
         results.click()
         time.sleep(0.2)
 
         # Get description as well as remove [1] etc
-        player["shortDescription"] = re.sub(r'\[\d+]', '', driver.find_element(By.XPATH, '//*[@id="mw-content-text'
-                                                                                         '"]/div[1]/p[2]').text)
-        elem = None
+        player["shortDescription"] = re.sub(r'\[\d+]', '', self.driver.find_element(By.XPATH, '//*[@id="mw-content-text'
+                                                                                    '"]/div[1]/p[*]').text)
+        wiki_img_base64 = None
         try:
-            elem = driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[1]/td/span/a/img').screenshot_as_base64;
+            wiki_img_base64 = self.driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[1]/td/span/a/img').screenshot_as_base64
         except:
-            elem = None
-        self.player_repository.write_data(player_url, player, player_img_base64, elem)
+            pass
+        self.player_repository.write_data(player_url, player, player_img_base64, wiki_img_base64)
         return player
 
-    def __prepare_dataset(self):
+    def prepare_dataset(self):
         """The method which parses data relative to the reference URL
 
         Args:
@@ -107,19 +113,27 @@ class Scraper:
         header = ['name', 'url']
         data = []
 
-        driver.get(self.referenceUrl)
+        self.driver.get('https://fbref.com/en/comps/9/stats/Premier-League-Stats')
+
+        try:
+            cookies_button = self.driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
+            cookies_button.click()
+        except:
+            print("No cookie button found")
 
         # Parse the document into result[]
-        links = driver.find_elements(By.XPATH, '//*[@id="stats_standard"]/tbody/tr[*]/td[1]/a')
+        links = self.driver.find_elements(By.XPATH, '//*[@id="stats_standard"]/tbody/tr[*]/td[1]/a')
         for link in links:
             data.append([link.text, link.get_attribute("href").replace('https://fbref.com/en/players/', '')])
 
         self.player_repository.write_dataset(header, data)
+        print('Preparation ended')
+        return
 
 
     # Different kinds of tables and respective parsing methods
     def parse_standard_stats(self):
-        current_table = driver.find_element(By.XPATH, f'.//*[@id="all_stats_standard"]')
+        current_table = self.driver.find_element(By.XPATH, f'.//*[@id="all_stats_standard"]')
 
         entries = current_table.find_elements(By.XPATH, './/*[@id= "stats"]')
 
@@ -152,7 +166,7 @@ class Scraper:
         return seasons
 
     def parse_shooting_stats(self):
-        current_table = driver.find_element(By.XPATH, f'.//*[@id="all_stats_shooting"]')
+        current_table = self.driver.find_element(By.XPATH, f'.//*[@id="all_stats_shooting"]')
 
         entries = current_table.find_elements(By.XPATH, './/*[@id= "stats"]')
 
@@ -174,7 +188,7 @@ class Scraper:
         return seasons
 
     def parse_passing_stats(self):
-        current_table = driver.find_element(By.XPATH, f'.//*[@id="all_stats_passing"]')
+        current_table = self.driver.find_element(By.XPATH, f'.//*[@id="all_stats_passing"]')
 
         entries = current_table.find_elements(By.XPATH, './/*[@id= "stats"]')
         seasons = dict()
