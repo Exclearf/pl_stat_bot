@@ -1,5 +1,6 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
 from unidecode import unidecode
 import time
 import re
@@ -77,7 +78,12 @@ class Scraper:
             player['all_stats_goals1'] = self.all_stats_goals1()
 
         # Go to wiki for short bio
-        self.driver.get("https://www.wikipedia.org/")
+        self.driver.get("https://wikipedia.org/")
+        try:
+            select = Select(self.driver.find_element_by_xpath('//*[@id="searchLanguage"]'))
+            select.select_by_value('English')
+        except:
+            pass
 
         m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
         m.click()
