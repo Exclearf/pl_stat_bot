@@ -24,7 +24,7 @@ BOT_TOKEN = os.environ.get('TG_BOT_API_KEY')
 bot = TeleBot(BOT_TOKEN, parse_mode='HTML')
 repository = PlayerRepository()
 analyzer = DataAnalyzer()
-driver_pool = WebDriverPool(size=100)
+driver_pool = WebDriverPool(size=1)
 
 ########################################################################################################################
 #                                                 TG API SECTION                                                       #
@@ -38,7 +38,6 @@ def start_handler(message: Message):
 @bot.message_handler(content_types=['text'])
 def text_handler(message: Message):
     player_data = analyzer.search_players(message.text)
-
     if len(player_data) == 0:
         with open('../resources/images/No footballer found.png', 'rb') as image:
             return bot.send_photo(chat_id=message.chat.id, photo=image)
@@ -103,18 +102,32 @@ def callback_query_handler(call):
 
 def scrape(player_link, chat_id, message_id):
     try:
-        driver = driver_pool.acquire(client_id=chat_id)
+        with driver_pool.get_driver(chat_id) as driver:
+            with open('../resources/images/Browser found.png', 'rb') as image:
+                bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                                       media=InputMediaPhoto(image))
+            Scraper(repository, driver).generate_player_data(player_link)
     except Exception as e:
         raise e
-    else:
-        # with driver_pool.get_driver(client_id=client_id) as driver:
-        with open('../resources/images/Browser found.png', 'rb') as image:
+    return
+
+def prepare_for_scraping(player_link, chat_id, message_id):
+    with open('../resources/images/Waiting for a ready browser.png', 'rb') as image:
+        bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                               media=InputMediaPhoto(image))
+    try:
+        scrape(player_link=player_link, chat_id=chat_id, message_id=message_id)
+        return True
+    except TimeoutError as e:
+        with open('../resources/images/Failed to acquire a browser.png', 'rb') as image:
             bot.edit_message_media(chat_id=chat_id, message_id=message_id,
                                    media=InputMediaPhoto(image))
-        Scraper(repository, driver).generate_player_data(player_link)
-        driver_pool.release(driver, chat_id)
-        return True
-
+        return False
+    except RuntimeError as e:
+        with open("../resources/images/Who's that.png", 'rb') as image:
+            bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                                   media=InputMediaPhoto(image))
+        return False
 
 @bot.callback_query_handler(func=lambda call: '_playerUrl' in call.data)
 def player_button_click_handler(call: CallbackQuery):
@@ -126,29 +139,14 @@ def player_button_click_handler(call: CallbackQuery):
     if os.path.exists(player_data_filepath):
         with open(player_data_filepath + player_id.split('/')[-1] + '.json', 'rb') as file:
             if datetime.now() - datetime.fromisoformat(json.load(file)['creationDate']) > timedelta(minutes=2):
-                with open('../resources/images/Waiting for a ready browser.png', 'rb') as image:
-                    bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id, media=InputMediaPhoto(image))
-                while True:
-                    try:
-                        scrape(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
-                        break
-                    except TimeoutError as e:
-                        with open('../resources/images/Failed to acquire a browser.png', 'rb') as image:
-                            bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                                   media=InputMediaPhoto(image))
-                        return
+                success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
+                if not success:
+                    return
     else:
-        with open('../resources/images/Waiting for a ready browser.png', 'rb') as image:
-            bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id, media=InputMediaPhoto(image))
-        while True:
-            try:
-                scrape(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
-                break
-            except TimeoutError as e:
-                with open('../resources/images/Failed to acquire a browser.png', 'rb') as image:
-                    bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                           media=InputMediaPhoto(image))
-                return
+        success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id,
+                                       message_id=call.message.message_id)
+        if not success:
+            return
     data = analyzer.get_player_data(player_name)
     basic_data = analyzer.player_basic_data(data)
     seasons = analyzer.player_years(data)

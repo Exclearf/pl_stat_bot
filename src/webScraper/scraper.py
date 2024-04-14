@@ -20,6 +20,16 @@ class Scraper:
 
         # Go to player page
         self.driver.get(player_url)
+
+        if player_url not in self.driver.current_url:
+            raise RuntimeError('Player has no page')
+
+        try:
+            btn = self.driver.find_element(By.XPATH, '//*[@id="modal-close"]')
+            btn.click()
+        except:
+            pass
+
         try:
             cookies_button = self.driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
             cookies_button.click()
