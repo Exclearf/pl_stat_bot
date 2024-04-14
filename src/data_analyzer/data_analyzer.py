@@ -88,7 +88,7 @@ class DataAnalyzer:
         player_seasons_years.append('all')
         return player_seasons_years
 
-    def player_graph_standard(self, player_data):
+    def player_graph_standard_ga(self, player_data):
         seasons = []
         goals_scored = []
         assists_made = []
@@ -98,15 +98,16 @@ class DataAnalyzer:
         index = 0
         for season, stats in player_data["standard_stats"].items():
             seasons.append(season)
-            if stats['goals'] == "":
+
+            if stats['performance']['goals'] == "":
                 goals_scored.append(0)
             else:
-                goals_scored.append(int(stats["goals"]))
+                goals_scored.append(int(stats['performance']["goals"]))
 
-            if stats['assists'] == "":
+            if stats['performance']['assists'] == "":
                 assists_made.append(0)
             else:
-                assists_made.append(int(stats["assists"]))
+                assists_made.append(int(stats['performance']["assists"]))
 
             performance = stats.get("performance", {})
 
@@ -121,7 +122,7 @@ class DataAnalyzer:
             exp_goals.append(float(expected_goals_str) if expected_goals_str else 0.0)
             exp_assists.append(float(expected_assists_str) if expected_assists_str else 0.0)
 
-        #create a graph
+        #create a g/a graph
         plt.figure(figsize=(10, 6))
         #create plots with goals and assists
         plt.plot(seasons, goals_scored, linewidth=5, color='red', linestyle='-', label='Goals Scored')
@@ -146,24 +147,64 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         #save the graph to the player dir
-        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-graph.png'
+        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-ga-graph.png'
         plt.savefig(path)
         plt.show()
 
-#options = Options()
-#user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-#options.add_argument(f"user-agent={user_agent_string}")
-#options.add_argument("window-size=1920,1080")
-#driver = webdriver.Chrome(options=options)
-#scraper = Scraper(repository, webdriver.Chrome())
-##scraper.prepare_dataset()
-#analyzer = DataAnalyzer()
-#results = analyzer.search_players('Zinch')
-#scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
+    def player_graph_standard_cards(self, player_data):
+        red_cards = []
+        yellow_cards = []
+        seasons = []
 
-#data = analyzer.get_player_data(results[0][0])
+        for season, stats in player_data["standard_stats"].items():
+            seasons.append(season)
 
-#print(analyzer.player_season_data(results[0][0], '2021-2022'))
-#DataAnalyzer().player_graph_attack(data)
-#print(analyzer.player_years())
-#driver.quit()
+            if stats['cards']['red'] == "":
+                red_cards.append(0)
+            else:
+                red_cards.append(int(stats['cards']["red"]))
+
+            if stats['cards']['yellow'] == "":
+                yellow_cards.append(0)
+            else:
+                yellow_cards.append(int(stats['cards']["yellow"]))
+
+        # create cards graph
+        plt.figure(figsize=(10, 6))
+        # create plots with red and yellow cards
+        plt.plot(seasons, yellow_cards, linewidth=5, color='yellow', linestyle='-', label='Yellow Cards')
+        plt.plot(seasons, red_cards, linewidth=5, color='red', linestyle='-', label='Red Cards')
+
+        # Add a grid
+        plt.grid(linestyle='-')
+        # Desc
+        plt.title("Cards received by season")
+        plt.xlabel("Season")
+        plt.ylabel("Cards")
+        # rotate desc
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.legend()
+        # save the graph to the player dir
+        path = DataAnalyzer().player_path(unidecode(player_data["name"])) + '-cards-graph.png'
+        plt.savefig(path)
+        plt.show()
+
+'''
+options = Options()
+user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+options.add_argument(f"user-agent={user_agent_string}")
+options.add_argument("window-size=1920,1080")
+driver = webdriver.Chrome(options=options)
+scraper = Scraper(repository, webdriver.Chrome())
+scraper.prepare_dataset()
+analyzer = DataAnalyzer()
+results = analyzer.search_players('ga')
+scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
+
+data = analyzer.get_player_data(results[0][0])
+analyzer.player_graph_standard_cards(data)
+analyzer.player_graph_standard_ga(data)
+
+driver.quit()
+'''
