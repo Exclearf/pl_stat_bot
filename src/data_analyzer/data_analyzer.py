@@ -47,6 +47,11 @@ class DataAnalyzer:
         path = dir + '/' + graph_name
         return path
 
+    def path_for_btn(self, primary_path):
+        optimized_path = primary_path[3:]
+        return optimized_path
+
+
     #Get data from json created by scraper
     def get_player_data(self, player_name):
         path = DataAnalyzer().player_path(player_name) + '.json'
@@ -158,6 +163,7 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'ga-graph.png')
         plt.savefig(path)
         plt.show()
+        return DataAnalyzer().path_for_btn(path)
 
     def player_graph_standard_cards(self, player_name):
         player_data = DataAnalyzer().get_player_data(player_name)
@@ -198,6 +204,7 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'cards-graph.png')
         plt.savefig(path)
         plt.show()
+        return DataAnalyzer().path_for_btn(path)
 
     def player_graph_shooting(self, player_name):
         player_data = DataAnalyzer().get_player_data(player_name)
@@ -263,6 +270,7 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'shots', 'shots-graph.png')
         plt.savefig(path)
         plt.show()
+        return DataAnalyzer().path_for_btn(path)
 
     def player_graph_passing_assists(self, player_name):
         player_data = DataAnalyzer().get_player_data(player_name)
@@ -316,6 +324,7 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'assists-graph.png')
         plt.savefig(path)
         plt.show()
+        return DataAnalyzer().path_for_btn(path)
 
     def player_graph_passing_distance(self, player_name):
         player_data = DataAnalyzer().get_player_data(player_name)
@@ -379,6 +388,7 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'passes-graph.png')
         plt.savefig(path)
         plt.show()
+        return DataAnalyzer().path_for_btn(path)
 
 
     #if CreationDate(graph) > creationDate(json) -> new graph
@@ -395,11 +405,15 @@ results = analyzer.search_players('de br')
 #scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
-analyzer.player_graph_standard_ga('Kevin De Bruyne')
-analyzer.player_graph_standard_cards('Kevin De Bruyne')
-analyzer.player_graph_passing_distance('Kevin De Bruyne')
-analyzer.player_graph_passing_assists('Kevin De Bruyne')
-analyzer.player_graph_shooting('Kevin De Bruyne')
+print(analyzer.player_graph_standard_ga('Kevin De Bruyne'))
+print(analyzer.player_graph_standard_cards('Kevin De Bruyne'))
+print(analyzer.player_graph_passing_distance('Kevin De Bruyne'))
+print(analyzer.player_graph_passing_assists('Kevin De Bruyne'))
+print(analyzer.player_graph_shooting('Kevin De Bruyne'))
+
+
 
 #driver.quit()
+
+
 '''
