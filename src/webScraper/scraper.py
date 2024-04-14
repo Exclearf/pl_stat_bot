@@ -42,50 +42,33 @@ class Scraper:
         full_name = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text
 
         try:
-            player['nationality'] = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[4]/span[3]').text.split(', ')[-1].replace('in ', '').strip()
-        except:
-            try:
-                player['nationality'] = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[3]/span[3]').text.split(', ')[-1].replace('in ', '').strip()
-            except:
-                player['nationality'] = ''
-
-        try:
             player_img_base64 = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
         except:
-            print(f'Reference image found for {player["name"]}')
+            print(f'Reference image not found for {player["name"]}')
+
         if full_name.find(player["name"].split(' ')[0]) != -1:
-            player_characteristics = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[2]').text.split(' ▪  ')
-            player["position"] = player_characteristics[0].split(': ')[1].strip()
-            if len(player_characteristics) > 1:
-                player["footed"] = player_characteristics[1].split(': ')[1].strip()
             player["fullName"] = full_name
-        else:
-            try:
-                player_characteristics = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/p[1]').text.split(' ▪  ')
-                if len(player_characteristics) > 0:
-                    player["position"] = player_characteristics[0].split(': ')[1].strip()
-                if len(player_characteristics) > 1:
-                    player["footed"] = player_characteristics[1].split(': ')[1].strip()
-            except:
-                player["position"] = ''
-                player["footed"] = ''
 
-        try:
-            rows = self.driver.find_elements(By.XPATH, '//*[@id="meta"]/div[2]/p')
-            for row_text in rows.text:
-                if 'Club' in row_text:
-                    player['club'] = row_text.split(': ')[-1]
+        rows = self.driver.find_elements(By.XPATH, f'//*[@id="meta"]/div[2]/p')
+        for row in rows:
+            if 'Club: ' in row.text:
+                player['club'] = row.text.split(': ')[-1]
             player['club'] = ''
-        except:
-            player['club'] = ''
+            if 'Position: ' in row.text:
+                row_text_parts = row.text.split(' ▪  ')
+                if len(row_text_parts) > 0:
+                    player["position"] = row_text_parts[0].split(': ')[1].strip()
+                if len(row_text_parts) > 1:
+                    player["footed"] = row_text_parts[1].split(': ')[1].strip()
+            if 'Born: ' in row.text:
+                player['nationality'] = " ".join(row.text.split(', ')[-1].strip().split(' ')[:-1])
 
-        if player["position"] != 'GK':
-            player["standard_stats"] = self.parse_standard_stats()
-            player["shooting_stats"] = self.parse_shooting_stats()
-            player["passing_stats"] = self.parse_passing_stats()
-        else:
-            player["all_stats_goals"] = self.all_stats_goals()
-            player['all_stats_goals1'] = self.all_stats_goals1()
+        player["standard_stats"] = self.parse_standard_stats()
+        player["shooting_stats"] = self.parse_shooting_stats()
+        player["passing_stats"] = self.parse_passing_stats()
+        if player["position"] == 'GK':
+            player["standard_goalkeeping"] = self.parse_standard_goalkeeping()
+            player['advanced_goalkeeping'] = self.parse_advanced_goalkeeping()
 
         # Go to wiki for short bio
         self.driver.get("https://wikipedia.org/")
@@ -97,7 +80,7 @@ class Scraper:
 
         m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
         m.click()
-        m.send_keys(player.get("fullName", player["name"]) + ' footballer')
+        m.send_keys(player.get("fullName", player["name"]) + ' footballer ' + player['standard_stats']['2023-2024'].get('squad', ''))
         time.sleep(0.2)
         m.send_keys(Keys.ENTER)
         time.sleep(0.2)
@@ -238,6 +221,60 @@ class Scraper:
             performance['passes'] = passes
 
             season["performance"] = performance
+
+            seasons[current_season] = season
+
+        return seasons
+
+    def parse_standard_goalkeeping(self):
+        current_table = self.driver.find_element(By.XPATH, f'.//*[@id="all_stats_keeper"]')
+
+        entries = current_table.find_elements(By.XPATH, './/*[@id= "stats"]')
+
+        seasons = dict()
+        for entry in entries:
+            current_season = entry.find_element(By.XPATH, './/th').text
+
+            season = dict()
+            season["age"] = entry.find_element(By.XPATH, './/td[1]').text
+            season["squad"] = entry.find_element(By.XPATH, './/td[2]/a').text
+            season["country"] = entry.find_element(By.XPATH, './/td[3]/a[2]').text
+            season["competition"] = entry.find_element(By.XPATH, './/td[4]/a').text
+            season["leagueRank"] = entry.find_element(By.XPATH, './/td[5]').text
+            season["matchesPlayed"] = entry.find_element(By.XPATH, './/td[6]').text
+            season["matchesPlayed"] = entry.find_element(By.XPATH, './/td[7]').text
+            season["gamesStarted"] = entry.find_element(By.XPATH, './/td[8]').text
+
+            performance = dict()
+            performance["goalsAgainst"] = entry.find_element(By.XPATH, './/td[10]').text
+            performance["shotsOnTargetAgainst"] = entry.find_element(By.XPATH, './/td[12]').text
+            performance["saves"] = entry.find_element(By.XPATH, './/td[13]').text
+            season["performance"] = performance
+
+            penalty = dict()
+            penalty["attempted"] = entry.find_element(By.XPATH, './/td[20]').text
+            penalty["saved"] = entry.find_element(By.XPATH, './/td[22]').text
+            season["penalty"] = penalty
+
+            seasons[current_season] = season
+
+        return seasons
+
+    def parse_advanced_goalkeeping(self):
+        current_table = self.driver.find_element(By.XPATH, f'.//*[@id="all_stats_keeper_adv"]')
+
+        entries = current_table.find_elements(By.XPATH, './/*[@id= "stats"]')
+
+        seasons = dict()
+        for entry in entries:
+            current_season = entry.find_element(By.XPATH, './/th').text
+
+            season = dict()
+            season["postShotExpected"] = entry.find_element(By.XPATH, './/td[12]').text
+            season["passesCompletedLaunched"] = entry.find_element(By.XPATH, './/td[16]').text
+            season["passesAttempted"] = entry.find_element(By.XPATH, './/td[19]').text
+            season["defActionOutsidePenArea"] = entry.find_element(By.XPATH, './/td[29]').text
+            season["avgDistOfDefActions"] = entry.find_element(By.XPATH, './/td[31]').text
 
             seasons[current_season] = season
 
