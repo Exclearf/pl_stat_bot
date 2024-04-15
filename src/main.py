@@ -10,29 +10,32 @@ import os
 import math
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import atexit
 import time
+import configparser 
 
 
 # ! Initialization of deps
+
 load_dotenv()
+
 ITEMS_PER_SEARCH_PAGE = 5
 ITEMS_PER_SEASON_PAGE = 3
-TIMEOUT_FOR_DELETE_ON_FAILED_SEARCH = 100
-user_data = {}
 BOT_TOKEN = os.environ.get('TG_BOT_API_KEY')
 
+user_data = {}
 bot = TeleBot(BOT_TOKEN, parse_mode='HTML')
 repository = PlayerRepository()
 analyzer = DataAnalyzer()
-driver_pool = WebDriverPool(size=1)
+driver_pool = None
 
 ########################################################################################################################
 #                                                 TG API SECTION                                                       #
 ########################################################################################################################
 @bot.message_handler(commands=['start'])
 def start_handler(message: Message):
-    with open('../resources/images/Start.png', 'rb') as image:
-        return bot.send_photo(message.from_user.id, image)
+    bot.send_photo(message.from_user.id, photo=user_data['images']['Start.png'])
+    return
 
 
 @bot.message_handler(content_types=['text'])
@@ -40,32 +43,31 @@ def text_handler(message: Message):
     player_data = analyzer.search_players(message.text)
     if len(player_data) == 0:
         with open('../resources/images/No footballer found.png', 'rb') as image:
-            return bot.send_photo(chat_id=message.chat.id, photo=image)
+            return bot.send_photo(chat_id=message.chat.id, photo=user_data['images']['No footballer found.png'])
 
     # Initialize data caching
     try:
-        user_data[message.from_user.id]
+        user_data[str(message.from_user.id)]
     except:
-        user_data[message.from_user.id] = dict()
+        user_data[str(message.from_user.id)] = dict()
     try:
-        user_data[message.from_user.id]['isParsing']
+        user_data[str(message.from_user.id)]['isParsing']
     except:
-        user_data[message.from_user.id]['isParsing'] = None
-    user_data[message.from_user.id]['data'] = player_data
+        user_data[str(message.from_user.id)]['isParsing'] = None
     next_message_id = message.message_id + 1
     try:
-        user_data[message.from_user.id][next_message_id]
+        user_data[str(message.from_user.id)][str(next_message_id)]
     except:
-        user_data[message.from_user.id][next_message_id] = dict()
-    user_data[message.from_user.id][next_message_id]['last_caption'] = ''
-    user_data[message.from_user.id][next_message_id]['last_search'] = 0
+        user_data[str(message.from_user.id)][str(next_message_id)] = dict()
+    user_data[str(message.from_user.id)][str(next_message_id)]['data'] = player_data
+    user_data[str(message.from_user.id)][str(next_message_id)]['last_caption'] = ''
+    user_data[str(message.from_user.id)][str(next_message_id)]['last_search'] = 0
 
     player_data_length = len(player_data)
     total_pages = math.ceil(player_data_length / ITEMS_PER_SEARCH_PAGE) - 1
 
     markup = generate_markup(player_data, 0, total_pages)
-    with open('../resources/images/Search Results.png', 'rb') as image:
-        return bot.send_photo(message.chat.id, image, reply_markup=markup)
+    bot.send_photo(chat_id=message.chat.id, photo=user_data['images']['Search Results.png'], reply_markup=markup)
 
 
 @bot.callback_query_handler(
@@ -74,7 +76,7 @@ def text_handler(message: Message):
                                        "current_page_player_list"]))
 def callback_query_handler(call):
     data = call.data
-    items = user_data[call.from_user.id]['data']
+    items = user_data[str(call.from_user.id)][str(call.message.message_id)]['data']
     total_pages = math.ceil(len(items) / ITEMS_PER_SEARCH_PAGE) - 1
     try:
         current_page = int(call.json['message']['reply_markup']['inline_keyboard'][-1][1]['text'].split('/')[0]) - 1
@@ -90,18 +92,14 @@ def callback_query_handler(call):
             new_page = 0
     elif data == "current_page_player_list":
         markup = generate_markup_search_page_list(total_pages, call_id=call.from_user.id, message_id=call.message.message_id)
-        with open('../resources/images/Choice of result page.png', 'rb') as image:
-            media = InputMediaPhoto(image)
-            return bot.edit_message_media(media=media, chat_id=call.message.chat.id, message_id=call.message.message_id,
+        return bot.edit_message_media(media=InputMediaPhoto(user_data['images']['Choice of result page.png']), chat_id=call.message.chat.id, message_id=call.message.message_id,
                                           reply_markup=markup)
     elif '_goto_player_search_list' in data:
         markup = generate_markup(items, int(data.split('_')[0]), total_pages)
-        user_data[call.from_user.id][call.message.message_id]['last_search'] = int(data.split('_')[0])
-        with open('../resources/images/Search Results.png', 'rb') as image:
-            media = InputMediaPhoto(image)
-            return bot.edit_message_media(media=media, chat_id=call.message.chat.id, message_id=call.message.message_id,
+        user_data[str(call.from_user.id)][str(call.message.message_id)]['last_search'] = int(data.split('_')[0])
+        return bot.edit_message_media(media=InputMediaPhoto(user_data['images']['Search Results.png']), chat_id=call.message.chat.id, message_id=call.message.message_id,
                                           reply_markup=markup)
-    user_data[call.from_user.id][call.message.message_id]['last_search'] = new_page
+    user_data[str(call.from_user.id)][str(call.message.message_id)]['last_search'] = new_page
     markup = generate_markup(items, new_page, total_pages)
     bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
 
@@ -109,9 +107,8 @@ def callback_query_handler(call):
 def scrape(player_link, chat_id, message_id):
     try:
         with driver_pool.get_driver(chat_id) as driver:
-            with open('../resources/images/Browser found.png', 'rb') as image:
-                bot.edit_message_media(chat_id=chat_id, message_id=message_id,
-                                       media=InputMediaPhoto(image))
+            bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                                       media=InputMediaPhoto(user_data['images']['Browser found.png']))
             Scraper(repository, driver).generate_player_data(player_link)
     except Exception as e:
         raise e
@@ -119,29 +116,25 @@ def scrape(player_link, chat_id, message_id):
 
 
 def prepare_for_scraping(player_link, chat_id, message_id):
-    with open('../resources/images/Waiting for a ready browser.png', 'rb') as image:
-        bot.edit_message_media(chat_id=chat_id, message_id=message_id,
-                               media=InputMediaPhoto(image))
+    bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                               media=InputMediaPhoto(user_data['images']['Waiting for a ready browser.png']))
     try:
         scrape(player_link=player_link, chat_id=chat_id, message_id=message_id)
         return True
     except TimeoutError as e:
-        with open('../resources/images/Failed to acquire a browser.png', 'rb') as image:
-            bot.edit_message_media(chat_id=chat_id, message_id=message_id,
-                                   media=InputMediaPhoto(image))
+        bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                                   media=InputMediaPhoto(user_data['images']['Failed to acquire a browser.png']))
         return False
     except RuntimeError as e:
-        with open("../resources/images/Who's that.png", 'rb') as image:
-            bot.edit_message_media(chat_id=chat_id, message_id=message_id,
-                                   media=InputMediaPhoto(image))
+        bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                                   media=InputMediaPhoto(user_data['images']["Who's that.png"]))
         return False
 
 def concurrent_error_handler(call: CallbackQuery, ):
-    with open('../resources/images/Wait for previous.png', 'rb') as image:
-        keyboard = InlineKeyboardMarkup()
-        keyboard.add(InlineKeyboardButton(text="Back to the results", callback_data=f"{user_data[call.from_user.id][call.message.message_id]['last_search']}_goto_player_search_list"))
-        bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                           media=InputMediaPhoto(image), reply_markup=keyboard)
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton(text="Back to the results", callback_data=f"{user_data[str(call.from_user.id)][str(call.message.message_id)]['last_search']}_goto_player_search_list"))
+    bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                           media=InputMediaPhoto(user_data['images']['Wait for previous.png']), reply_markup=keyboard)
 
 @bot.callback_query_handler(func=lambda call: '_playerUrl' in call.data)
 def player_button_click_handler(call: CallbackQuery):
@@ -153,24 +146,24 @@ def player_button_click_handler(call: CallbackQuery):
     if os.path.exists(player_data_filepath):
         with open(player_data_filepath + player_id.split('/')[-1] + '.json', 'rb') as file:
             if datetime.now() - datetime.fromisoformat(json.load(file)['creationDate']) > timedelta(minutes=60):
-                if user_data[call.from_user.id]['isParsing'] is False or user_data[call.from_user.id]['isParsing'] is None:
-                    user_data[call.from_user.id]['isParsing'] = True
+                if user_data[str(call.from_user.id)]['isParsing'] is False or user_data[str(call.from_user.id)]['isParsing'] is None:
+                    user_data[str(call.from_user.id)]['isParsing'] = True
                 else:
                     concurrent_error_handler(call)
                     return
                 success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
-                user_data[call.from_user.id]['isParsing'] = False
+                user_data[str(call.from_user.id)]['isParsing'] = False
                 if not success:
                     return
     else:
-        if user_data[call.from_user.id]['isParsing'] is False or user_data[call.from_user.id]['isParsing'] is None:
-            user_data[call.from_user.id]['isParsing'] = True
+        if user_data[str(call.from_user.id)]['isParsing'] is False or user_data[str(call.from_user.id)]['isParsing'] is None:
+            user_data[str(call.from_user.id)]['isParsing'] = True
         else:
             concurrent_error_handler(call)
             return
         success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id,
                                        message_id=call.message.message_id)
-        user_data[call.from_user.id]['isParsing'] = False
+        user_data[str(call.from_user.id)]['isParsing'] = False
         if not success:
             return
 
@@ -209,14 +202,14 @@ def player_button_click_handler(call: CallbackQuery):
 
     season = 0
     try:
-        season = user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]['last_season']
+        season = user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]['last_season']
     except:
         pass
     try:
-        user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]
+        user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]
     except:
-        user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]] = dict()
-    user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]['last_season'] = season
+        user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]] = dict()
+    user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]['last_season'] = season
     markup = generate_markup_seasons(player_name=player_id.split('/')[-1], player_seasons=seasons, page=season,
                                      total_pages=total_pages, call_id=call.from_user.id, message_id=call.message.message_id)
     image = None
@@ -231,13 +224,13 @@ def player_button_click_handler(call: CallbackQuery):
         image_path = '../resources/images/No image found.png'
         image = open(image_path, 'rb')
 
-    bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+    m_response = bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
                            media=InputMediaPhoto(image))
     if caption:
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, caption=caption,
                                  reply_markup=markup)
-    user_data[call.from_user.id][call.message.message_id]['last_caption'] = caption
-    user_data[call.from_user.id][call.message.message_id]['last_image_path'] = image_path
+    user_data[str(call.from_user.id)][str(call.message.message_id)]['last_caption'] = caption
+    user_data[str(call.from_user.id)][str(call.message.message_id)]['last_image_path'] = m_response.photo[0].file_id
     image.close()
 
 @bot.callback_query_handler(func=lambda call: '__do_nothing' in call.data)
@@ -257,13 +250,23 @@ def create_stat_data_message(call: CallbackQuery):
 
     graph_list = []
 
+    if graph_index == 'X':
+        try:
+            graph_index = user_data[str(call.from_user.id)][str(call.message.message_id)][name][graph_type]
+        except:
+            graph_index = '0'
+            user_data[str(call.from_user.id)][str(call.message.message_id)][name][graph_type] = graph_index
+    else:
+        user_data[str(call.from_user.id)][str(call.message.message_id)][name][graph_type] = graph_index
+
+
     match graph_type:
         case 'standard':
             graph_list = ['Goals_Assists', 'Cards']
         case 'passing':
             graph_list = ['Assists', 'Passes']
         case 'shooting':
-            graph_list = ['Shots-Goals2', 'Shots-Goals']
+            graph_list = ['Shots_Distance', 'Shots_Goals']
         case 'bgk':
             graph_list = ['Penalties_Shots', 'Saves']
         case 'agk':
@@ -329,7 +332,7 @@ def player_button_click_handler(call: CallbackQuery):
             create_stat_data_message(call)
         case 'shooting':
             analyzer.player_graph_shooting(player_name)
-            # analyzer.player_graph_shooting_advanced(player_name)
+            analyzer.player_graph_shooting_distance(player_name)
             create_stat_data_message(call)
         case 'bgk':
             analyzer.player_graph_bgk_penalties(player_name)
@@ -351,29 +354,27 @@ def player_button_click_handler(call: CallbackQuery):
     text = ''
     keyboard = InlineKeyboardMarkup()
     if season == 'all':
-        with open('../resources/images/What interests.png', 'rb') as image:
-            bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                   media=InputMediaPhoto(image))
+        bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                   media=InputMediaPhoto(user_data['images']['What interests.png']))
         if is_goal_keeper:
             keyboard.add(
-                InlineKeyboardButton(text=f"Standard Goalkeeping", callback_data=f"{name}_{season}_0_bgk_statistics"))
+                InlineKeyboardButton(text=f"Standard Goalkeeping", callback_data=f"{name}_{season}_X_bgk_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Advanced Goalkeeping", callback_data=f"{name}_{season}_0_agk_statistics"))
+                InlineKeyboardButton(text=f"Advanced Goalkeeping", callback_data=f"{name}_{season}_X_agk_statistics"))
         else:
             keyboard.add(
-                InlineKeyboardButton(text=f"Standard Statistic", callback_data=f"{name}_{season}_0_standard_statistics"))
+                InlineKeyboardButton(text=f"Standard Statistic", callback_data=f"{name}_{season}_X_standard_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Passing Statistic", callback_data=f"{name}_{season}_0_passing_statistics"))
+                InlineKeyboardButton(text=f"Passing Statistic", callback_data=f"{name}_{season}_X_passing_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Shooting Statistic", callback_data=f"{name}_{season}_0_shooting_statistics"))
+                InlineKeyboardButton(text=f"Shooting Statistic", callback_data=f"{name}_{season}_X_shooting_statistics"))
 
     else:
         data = analyzer.player_season_data(name, season)
         text += data and f'<b>{name.split(" ")[0]}`s Season {season}</b>\n'
         if not data['age']:
-            with open('../resources/images/No season data.png', 'rb') as image:
-                bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                       media=InputMediaPhoto(image))
+            bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                   media=InputMediaPhoto(user_data['images']['No season data.png']))
         else:
             text += '\n'
             text += data['age'] and f'<b>Age:</b> {data["age"]}\n'
@@ -387,9 +388,7 @@ def player_button_click_handler(call: CallbackQuery):
             else:
                 text += data['goals'] and f"<b>Goals:</b> {data['goals']}\n"
                 text += data['assists'] and f"<b>Assists:</b> {data['assists']}\n"
-
-            with open('../resources/images/Season result.png', 'rb') as image:
-                bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id, media=InputMediaPhoto(image))
+                bot.edit_message_media(media=InputMediaPhoto(user_data['images']['Season result.png']), chat_id=call.message.chat.id, message_id=call.message.message_id)
 
 
     keyboard.add(InlineKeyboardButton(text=f"Back to player page", callback_data=f"{name}_display-back_button-seasons"))
@@ -405,21 +404,20 @@ def player_button_click_handler(call: CallbackQuery):
     seasons = analyzer.player_years(data)
     total_pages = math.ceil(len(seasons) / ITEMS_PER_SEASON_PAGE) - 1
     try:
-        with open(user_data[call.from_user.id][call.message.message_id]['last_image_path'], 'rb') as image:
-            bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                   media=InputMediaPhoto(image))
+        bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                media=InputMediaPhoto(user_data[str(call.from_user.id)][str(call.message.message_id)]['last_image_path']))
     except:
         pass
 
     try:
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                 caption=user_data[call.from_user.id][call.message.message_id]['last_caption'])
+                                 caption=user_data[str(call.from_user.id)][str(call.message.message_id)]['last_caption'])
     except:
         pass
 
     page = 0
     try:
-        page = user_data[call.from_user.id][call.message.message_id][player_name]['last_season']
+        page = user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season']
     except:
         pass
 
@@ -440,7 +438,7 @@ def callback_query_handler(call):
     except:
         return
     try:
-        current_page = user_data[call.from_user.id][call.message.message_id][player_name]['last_season']
+        current_page = user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season']
     except:
         pass
     if "_back_player_seasons" in data:
@@ -454,21 +452,17 @@ def callback_query_handler(call):
     elif "_current_page_player_seasons" in data:
         markup = generate_markup_seasons_page_list(total_pages=total_pages, player_name=player_name,
                                                    call_id=call.from_user.id, message_id=call.message.message_id)
-        with open('../resources/images/Choice of result page.png', 'rb') as image:
-            media = InputMediaPhoto(image)
-            return bot.edit_message_media(media=media, chat_id=call.message.chat.id, message_id=call.message.message_id,
+        return bot.edit_message_media(media=InputMediaPhoto(user_data['images']['Choice of result page.png']), chat_id=call.message.chat.id, message_id=call.message.message_id,
                                           reply_markup=markup)
     elif '_goto_player_season_page' in data:
         markup = generate_markup_seasons(player_name=player_name, player_seasons=seasons, page=int(data.split('_')[1]),
                                          total_pages=total_pages, call_id=call.from_user.id, message_id=call.message.message_id)
-        user_data[call.from_user.id][call.message.message_id][player_name]['last_season'] = int(data.split('_')[1])
-        with open(user_data[call.from_user.id][call.message.message_id]['last_image_path'], 'rb') as image:
-            media = InputMediaPhoto(image)
-            bot.edit_message_media(media=media, chat_id=call.message.chat.id, message_id=call.message.message_id)
-            bot.edit_message_caption(caption=user_data[call.from_user.id][call.message.message_id]['last_caption'], chat_id=call.message.chat.id,
+        user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season'] = int(data.split('_')[1])
+        bot.edit_message_media(media=InputMediaPhoto(user_data[str(call.from_user.id)][str(call.message.message_id)]['last_image_path']), chat_id=call.message.chat.id, message_id=call.message.message_id)
+        bot.edit_message_caption(caption=user_data[str(call.from_user.id)][str(call.message.message_id)]['last_caption'], chat_id=call.message.chat.id,
                                      message_id=call.message.message_id, reply_markup=markup)
-            return
-    user_data[call.from_user.id][call.message.message_id][player_name]['last_season'] = new_page
+        return
+    user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season'] = new_page
     markup = generate_markup_seasons(player_seasons=seasons, page=new_page, total_pages=total_pages,
                                      call_id=call.from_user.id, player_name=player_name, message_id=call.message.message_id)
     bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
@@ -495,7 +489,7 @@ def generate_markup_seasons(player_name, player_seasons, page, total_pages, call
 
         keyboard.row(*row)
 
-    keyboard.add(InlineKeyboardButton(text="Back to the results", callback_data=f"{user_data[call_id][message_id]['last_search']}\
+    keyboard.add(InlineKeyboardButton(text="Back to the results", callback_data=f"{user_data[str(call_id)][str(message_id)]['last_search']}\
     _goto_player_search_list"))
 
     return keyboard
@@ -536,7 +530,7 @@ def generate_markup_search_page_list(total_pages, call_id, message_id):
     keyboard.row(*current_row)
 
     keyboard.add(InlineKeyboardButton(text="Go back to result",
-                                      callback_data=f"{user_data[call_id][message_id]['last_search']}_goto_player_search_list"))
+                                      callback_data=f"{user_data[str(call_id)][str(message_id)]['last_search']}_goto_player_search_list"))
     return keyboard
 
 
@@ -556,21 +550,71 @@ def generate_markup_seasons_page_list(total_pages, call_id, player_name, message
     keyboard.row(*current_row)
 
     keyboard.add(InlineKeyboardButton(text="Go back to result",
-                                      callback_data=f"{player_name}_{user_data[call_id][message_id][player_name]['last_season']}_goto_player_season_page"))
+                                      callback_data=f"{player_name}_{user_data[str(call_id)][str(message_id)][player_name]['last_season']}_goto_player_season_page"))
     return keyboard
 
+def redo_the_images(user_id):
+    user_data['images'] = dict()
+    for file_path in os.listdir('../resources/images'):
+        with open(f'../resources/images/{file_path}', 'rb') as image:
+            m = bot.send_photo(user_id, photo=image)
+            user_data['images'][file_path] = m.photo[0].file_id
+            bot.delete_message(chat_id=m.chat.id, message_id=m.id)
+    print('Finished the file_id actualization')
 
 ########################################################################################################################
 #                                               START THE MAIN LOOP                                                    #
 ########################################################################################################################
 
 if __name__ == "__main__":
+    config = configparser.ConfigParser()
+    config.read('../config.ini')
+
+    config_name = config['DEFAULT'].get("use_config", 'DEFAULT')
+
+    if config_name != 'DEFAULT':
+        user_choice = input("Custom config detected.\nType 'y' to use it: ").strip()
+        if user_choice.lower() not in ['yes', 'y']:
+            config_name = 'DEFAULT'
+
+    print(f'Using {config_name} config values')
+    config_data = config[config_name]
+
+    ITEMS_PER_SEASON_PAGE = int(config_data.get('items_per_season_page', 3))
+    ITEMS_PER_SEARCH_PAGE = int(config_data.get('items_per_search_page', 5))
+    driver_pool = WebDriverPool(size=config_data.get('max_browser_number', 1),
+                                browser_timeout=config_data.get('browser_lifecycle_time', 360),
+                                driver_pool_monitor_frequency=config_data.get('check_release_interval', 60),
+                                max_wait_time=config_data.get('max_wait_time', 30),
+                                headless=config_data.get('headless_mode', 'True'))
     try:
         with driver_pool.get_driver() as driver:
-            a = 1
+            '1'
             #Scraper(repository, driver).prepare_dataset()
     except Exception as e:
         print('There has been an error while creating a dataset.')
         print(str(e))
     else:
+        try:
+            with open("../resources/data/user_data.json", 'r') as json_file:
+                data = json.load(json_file)
+                user_data = data
+        except FileNotFoundError:
+            print('No user_data.json was found.')
+        user_choice = input("Do you want to actualize the file_id`s of the attachments?\nInput: ")
+
+        if user_choice.lower() in ['yes', 'y']:
+            user_choice = input('Please, supply your user_id: ')
+            try:
+                redo_the_images(user_id=user_choice)
+            except Exception as e:
+                print("Something has gone wrong while actualizing file_ids")
+            print('Finished actualizing')
         bot.infinity_polling()
+
+def exit_handler():
+    with open("../resources/data/user_data.json", "w") as outfile:
+        json.dump(user_data, outfile, indent=4, default=str)
+
+
+atexit.register(exit_handler)
