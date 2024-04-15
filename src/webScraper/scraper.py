@@ -249,6 +249,7 @@ class Scraper:
             performance["goalsAgainst"] = entry.find_element(By.XPATH, './/td[10]').text
             performance["shotsOnTargetAgainst"] = entry.find_element(By.XPATH, './/td[12]').text
             performance["saves"] = entry.find_element(By.XPATH, './/td[13]').text
+            performance["cleanSheets"] = entry.find_element(By.XPATH, './/td[18]').text
             season["performance"] = performance
 
             penalty = dict()
