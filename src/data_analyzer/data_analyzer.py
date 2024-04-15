@@ -2,7 +2,6 @@ import csv
 import re
 import sys
 from os import path
-
 from unidecode import unidecode
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +13,7 @@ from PIL import Image
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 from src.webScraper.scraper import *
 from src.repository.players_repository import *
+
 repository = PlayerRepository()
 plt.style.use('dark_background')
 
@@ -24,39 +24,36 @@ class DataAnalyzer:
 
     def search_players(self, partial_name):
         found_players = []
-        #{} - partial_name, r - substring match, format - insert in {}
-        name_pattern = re.compile(r'{}'.format(partial_name), re.IGNORECASE)
+        name_pattern = re.compile(re.escape(partial_name), re.IGNORECASE)
         # open in read 'r' mode, using utf8
         with open(self.csv_file_path, 'r', encoding='UTF8') as csvfile:
-            #CSV reader obj, column headers for iteration
+            # CSV reader obj, column headers for iteration
             csv_reader = csv.DictReader(csvfile)
-            #array of arrays, smaller array - [name, url] of every matched player
+            # array of arrays, smaller array - [name, url] of every matched player
             for row in csv_reader:
-                row['name'] = unidecode(row['name'])
-                if name_pattern.search(row['name']):
-                    found_players.append([row['name'], row['url']])
+                normalized_name = unidecode(row['name'])
+                if name_pattern.search(normalized_name):
+                    found_players.append([normalized_name, row['url']])
         return found_players
 
-    #name -> path for easier movements
+    # name -> path for easier movements
     def player_path(self, player_name):
         changed_player_name = player_name.replace(' ', '-')
-        path = '../resources/data/parsed_players/' + changed_player_name + '/' + changed_player_name
+        path = os.path.join('..', '..', 'resources', 'data', 'parsed_players', changed_player_name, changed_player_name)
         return path
+
     def graph_path(self, player_name, graph_type, graph_name):
         changed_player_name = player_name.replace(' ', '-')
-        dir_graph = f'../resources/data/parsed_players/{changed_player_name}/graph'
-        os.makedirs(dir_graph, exist_ok=True)
-        dir_graph_type = f'{dir_graph}/{graph_type}'
+        dir_graph_type = os.path.join('..', '..', 'resources', 'data', 'parsed_players', changed_player_name, 'graph', graph_type)
         os.makedirs(dir_graph_type, exist_ok=True)
-        path = dir_graph_type + '/' + graph_name
-        return path
+        full_path = os.path.join(dir_graph_type, graph_name)
+        return full_path
 
     def path_for_btn(self, primary_path):
         optimized_path = primary_path[3:]
         return optimized_path
 
-
-    #Get data from json created by scraper
+    #G et data from json created by scraper
     def get_player_data(self, player_name):
         path = DataAnalyzer().player_path(player_name) + '.json'
         with open(path, 'r', encoding='UTF8') as file:
@@ -66,72 +63,90 @@ class DataAnalyzer:
     def player_basic_data(self, player_name):
         player_data = self.get_player_data(player_name)
 
-        player_basic_data = {}
-        season_2023_2024 = player_data["standard_stats"]["2023-2024"]
-        try:
-            player_basic_data["fullName"] = player_data["fullName"]
-        except:
-            player_basic_data["fullName"] = player_data["name"]
-        player_basic_data["nationality"] = player_data["nationality"]
-        player_basic_data["position"] = player_data["position"]
-        try:
-            player_basic_data["footed"] = player_data["footed"]
-        except:
-            player_basic_data["footed"] = ''
-        player_basic_data["shortDescription"] = player_data["shortDescription"]
-        player_basic_data["squad"] = season_2023_2024["squad"]
-        player_basic_data["leagueRank"] = season_2023_2024["leagueRank"]
-        player_basic_data['matchesPlayed'] = season_2023_2024['matchesPlayed']
-        player_basic_data["competition"] = season_2023_2024["competition"]
-        player_basic_data["age"] = season_2023_2024["age"]
-        if self.isGK(player_data["name"]):
-            season_2023_2024_gk = player_data["standard_goalkeeping"]["2023-2024"]
-            player_basic_data['cleanSheets'] = season_2023_2024_gk['performance']['cleanSheets']
-            player_basic_data['goalsAgainst'] = season_2023_2024_gk['performance']['goalsAgainst']
+        # Setup player basic data dictionary with default values
+        player_basic_data = {
+            "fullName": player_data.get("fullName", player_data.get("name", "")),
+            "nationality": player_data.get("nationality", ""),
+            "position": player_data.get("position", ""),
+            "footed": player_data.get("footed", ""),
+            "shortDescription": player_data.get("shortDescription", ""),
+        }
+
+        # Extract season-specific data
+        season_data = player_data.get("standard_stats", {}).get("2023-2024", {})
+        player_basic_data.update({
+            "squad": season_data.get("squad", ""),
+            "leagueRank": season_data.get("leagueRank", ""),
+            "matchesPlayed": season_data.get("matchesPlayed", 0),
+            "competition": season_data.get("competition", ""),
+            "age": season_data.get("age", 0),
+        })
+
+        # Handling goalkeeper specific data
+        if self.isGK(player_name):
+            gk_data = player_data.get("standard_goalkeeping", {}).get("2023-2024", {}).get("performance", {})
+            player_basic_data.update({
+                'cleanSheets': gk_data.get('cleanSheets', 0),
+                'goalsAgainst': gk_data.get('goalsAgainst', 0)
+            })
         else:
-            player_basic_data['goals'] = season_2023_2024['performance']['goals']
-            player_basic_data['assists'] = season_2023_2024['performance']['assists']
+            perf_data = season_data.get("performance", {})
+            player_basic_data.update({
+                'goals': perf_data.get('goals', 0),
+                'assists': perf_data.get('assists', 0)
+            })
 
         return player_basic_data
 
     def player_season_data(self, player_name, season):
-        data = self.get_player_data(player_name)['standard_stats'][season]
+        player_data = self.get_player_data(player_name)
 
-        season_data = {}
-        season_data['season'] = season
-        season_data['age'] = data['age']
-        season_data['squad'] = data['squad']
-        season_data["competition"] = data["competition"]
-        season_data['leagueRank'] = data['leagueRank']
-        season_data['matchesPlayed'] = data['matchesPlayed']
+        season_stats = player_data.get('standard_stats', {}).get(season, {})
+        season_data = {
+            'season': season,
+            'age': season_stats.get('age', 0),
+            'squad': season_stats.get('squad', ''),
+            'competition': season_stats.get('competition', ''),
+            'leagueRank': season_stats.get('leagueRank', ''),
+            'matchesPlayed': season_stats.get('matchesPlayed', 0),
+        }
+
         if self.isGK(player_name):
-            gk_data = self.get_player_data(player_name)['standard_goalkeeping'][season]
-            season_data['cleanSheets'] = gk_data['performance']['cleanSheets']
-            season_data['goalsAgainst'] = gk_data['performance']['goalsAgainst']
+            gk_stats = player_data.get('standard_goalkeeping', {}).get(season, {}).get('performance', {})
+            season_data.update({
+                'cleanSheets': gk_stats.get('cleanSheets', 0),
+                'goalsAgainst': gk_stats.get('goalsAgainst', 0)
+            })
         else:
-            season_data['goals'] = data['performance']['goals']
-            season_data['assists'] = data['performance']['assists']
+            perf_data = season_stats.get('performance', {})
+            season_data.update({
+                'goals': perf_data.get('goals', 0),
+                'assists': perf_data.get('assists', 0)
+            })
+
         return season_data
 
     def player_years(self, player_data):
-        player_years = []
-        player_years = player_data["standard_stats"]
-        player_seasons_years = list(player_years)
+        player_seasons_years = list(player_data["standard_stats"].keys())
         player_seasons_years.append('all')
         return player_seasons_years
 
     # if CreationDate(graph) > creationDate(json) -> new graph
     def check_graphs_age(self, player_name, graph_type, graph_name):
-        player_data_filepath = '../resources/data/parsed_players/' + player_name + '/'
-        if os.path.exists(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png'):
-                ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
-                c_ti = datetime.fromtimestamp(ti_c)
+        base_path = os.path.join('../resources/data/parsed_players', player_name)
+        graph_path = os.path.join(base_path, 'graph', graph_type, f'{graph_name}-graph.png')
+        json_path = os.path.join(base_path, f'{player_name}.json')
 
-                with open(player_data_filepath + player_name + '.json', 'rb') as file:
-                    if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
-                        return True
-                    else:
-                        return False
+        if os.path.exists(graph_path):
+            graph_mod_time = datetime.fromtimestamp(os.path.getmtime(graph_path))
+            try:
+                with open(json_path, 'r', encoding='UTF-8') as file:
+                    creation_date = datetime.fromisoformat(json.load(file)['creationDate'])
+            except (IOError, KeyError, json.JSONDecodeError) as e:
+                print(f"Error reading from JSON file: {e}")
+                return False
+
+            return graph_mod_time > creation_date
         else:
             return False
 
@@ -161,6 +176,7 @@ class DataAnalyzer:
         # Convert empty strings to 0
         result = int(result) if result else 0.0
         return result
+
     def get_float_stats(self, stats, stats_data):
         result = stats.get(stats_data, {})
         # Convert empty strings to 0
@@ -172,9 +188,9 @@ class DataAnalyzer:
         skipped_count = len(seasons) - len(full_seasons)
         return full_seasons, skipped_count
 
-########################################################################################################################
-#                                                        GRAPHS                                                        #
-########################################################################################################################
+    ########################################################################################################################
+    #                                                        GRAPHS                                                        #
+    ########################################################################################################################
 
     def player_graph_standard_ga(self, player_name):
 
@@ -225,8 +241,9 @@ class DataAnalyzer:
         exp_assists = exp_assists[index:len(seasons)]
 
         #Only plots for seasons with xG
-        plt.plot(seasons_with_xG, exp_goals, linewidth=5, alpha=0.3,  color='red', linestyle='-', label='Expected Goals')
-        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-', label='Expected Assists')
+        plt.plot(seasons_with_xG, exp_goals, linewidth=5, alpha=0.3, color='red', linestyle='-', label='Expected Goals')
+        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-',
+                 label='Expected Assists')
 
         #Add a grid
         plt.grid(linestyle='-')
@@ -338,9 +355,9 @@ class DataAnalyzer:
 
         plt.figure(figsize=(10, 6))
         plt.plot(seasons, real_match_eff, linewidth=5, color='green', linestyle='-', label='Real Match Effectiveness')
-        plt.plot(seasons_with_exp, exp_match_eff, linewidth=5, alpha=0.5, color='yellow', linestyle='-', label='Expected Match Effectiveness')
+        plt.plot(seasons_with_exp, exp_match_eff, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
+                 label='Expected Match Effectiveness')
         plt.plot(seasons, shot_precision, linewidth=5, color='white', linestyle='-', label='Shot Precision')
-
 
         # Add a grid
         plt.grid(linestyle='-')
@@ -400,10 +417,10 @@ class DataAnalyzer:
 
         plt.figure(figsize=(10, 6))
         plt.plot(absolute_seasons, goals, linewidth=5, color='white', linestyle='-', label='Goals')
-        plt.plot(seasons_with_shot_distance, averageShotDistance, linewidth=5, alpha=0.5, color='green', linestyle='-', label='Average Shot Distance')
+        plt.plot(seasons_with_shot_distance, averageShotDistance, linewidth=5, alpha=0.5, color='green', linestyle='-',
+                 label='Average Shot Distance')
         plt.plot(seasons_with_shot_precision, shots_precision, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
                  label='Shots Effectiveness')
-
 
         # Add a grid
         plt.grid(linestyle='-')
@@ -416,7 +433,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = self.graph_path(unidecode(player_data["name"]), 'shots', 'Shots_Goals.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'shots', 'Shots_Distance.png')
         plt.savefig(path)
         plt.show()
         return self.path_for_btn(path)
@@ -459,7 +476,8 @@ class DataAnalyzer:
         exp_assists = exp_assists[index:len(seasons)]
 
         # Only plots for seasons with xG
-        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-', label='Expected Assists')
+        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-',
+                 label='Expected Assists')
 
         # Add a grid
         plt.grid(linestyle='-')
@@ -526,7 +544,7 @@ class DataAnalyzer:
         seasons_with_distance = seasons[zero_count:]
 
         plt.figure(figsize=(10, 6))
-        plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green',  label='Short')
+        plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green', label='Short')
         plt.plot(seasons_with_distance, mid_eff, linewidth=5, color='red', label='Medium')
         plt.plot(seasons_with_distance, long_eff, linewidth=5, color='blue', label='Long')
 
@@ -737,7 +755,6 @@ class DataAnalyzer:
             #% of the length
             distance_part.append(round((avgDistOfDefActions[-1] / field_length), 2) * 100)
 
-
         print(outside_freq)
         zero_count = distance_part.count(0.0)
         distance_part = distance_part[zero_count:]
@@ -748,7 +765,8 @@ class DataAnalyzer:
 
         plt.figure(figsize=(10, 6))
         plt.plot(seasons_with_data, distance_part, linewidth=5, color='yellow', label=' avg % of field distance')
-        plt.plot(seasons_with_data, outside_freq, linewidth=5, color='green', label='% of actions outside of penalty area')
+        plt.plot(seasons_with_data, outside_freq, linewidth=5, color='green',
+                 label='% of actions outside of penalty area')
         plt.legend()
         plt.grid(linestyle='-')
         plt.title("Sweeper")
@@ -784,6 +802,7 @@ class DataAnalyzer:
         path = self.graph_path(unidecode(player_data["name"]), 'agk', 'Passes.png')
         plt.savefig(path)
         plt.show()
+
 
 '''
 options = Options()
@@ -821,3 +840,4 @@ DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 '''
 
 #DataAnalyzer().player_graph_shooting_distance("Kevin-De-Bruyne")
+#print(DataAnalyzer().player_season_data("Jordan Pickford", '2021-2022'))
