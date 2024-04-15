@@ -60,7 +60,8 @@ class DataAnalyzer:
             data = json.load(file)
             return data
 
-    def player_basic_data(self, player_data):
+    def player_basic_data(self, player_name):
+        player_data = self.get_player_data(player_name)
 
         player_basic_data = {}
         season_2023_2024 = player_data["standard_stats"]["2023-2024"]
@@ -78,20 +79,31 @@ class DataAnalyzer:
         player_basic_data["squad"] = season_2023_2024["squad"]
         player_basic_data["leagueRank"] = season_2023_2024["leagueRank"]
         player_basic_data["age"] = season_2023_2024["age"]
-        player_basic_data["goals"] = season_2023_2024["performance"]["goals"]
-        player_basic_data["assists"] = season_2023_2024["performance"]["assists"]
+        if self.isGK(player_data["name"]):
+            season_2023_2024_gk = player_data["standard_goalkeeping"]["2023-2024"]
+            player_basic_data['CS'] = 'Clean Sheets'
+            player_basic_data['goalsAgainst'] = season_2023_2024_gk['performance']['goalsAgainst']
+        else:
+            player_basic_data['goals'] = season_2023_2024['performance']['goals']
+            player_basic_data['assists'] = season_2023_2024['performance']['assists']
 
         return player_basic_data
 
     def player_season_data(self, player_name, season):
-        data = DataAnalyzer().get_player_data(player_name)['standard_stats'][season]
+        data = self.get_player_data(player_name)['standard_stats'][season]
+
         season_data = {}
         season_data['season'] = season
         season_data['age'] = data['age']
         season_data['squad'] = data['squad']
         season_data['leagueRank'] = data['leagueRank']
-        season_data['goals'] = data['performance']['goals']
-        season_data['assists'] = data['performance']['assists']
+        if self.isGK(player_name):
+            gk_data = self.get_player_data(player_name)['standard_goalkeeping'][season]
+            season_data['CS'] = 'Clean Sheets'
+            season_data['goalsAgainst'] = gk_data['performance']['goalsAgainst']
+        else:
+            season_data['goals'] = data['performance']['goals']
+            season_data['assists'] = data['performance']['assists']
         return season_data
 
     def player_years(self, player_data):
@@ -114,6 +126,13 @@ class DataAnalyzer:
                     return True
                 else:
                     return False
+        else:
+            return False
+
+    def isGK(self, player_name):
+        data = self.get_player_data(player_name)
+        if data['position'] == "GK":
+            return True
         else:
             return False
 
@@ -429,21 +448,24 @@ options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
 options.add_argument(f"user-agent={user_agent_string}")
 options.add_argument("window-size=1920,1080")
-#driver = webdriver.Chrome(options=options)
+#
+driver = webdriver.Chrome(options=options)
 scraper = Scraper(repository, webdriver.Chrome())
 analyzer = DataAnalyzer()
-results = analyzer.search_players('de br')
-#scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
+results = analyzer.search_players('Pickford')
+#
+scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
 print(analyzer.player_graph_standard_ga('Kevin De Bruyne'))
 print(analyzer.player_graph_standard_cards('Kevin De Bruyne'))
-print(analyzer.player_graph_passing_distance('Kevin De Bruyne'))
+print(analyzer.player_graph_passing_distance(''))
 print(analyzer.player_graph_passing_assists('Kevin De Bruyne'))
 print(analyzer.player_graph_shooting('Kevin De Bruyne'))
 
+Kevin De Bruyne
 
-
-#driver.quit()
-
+driver.quit()
+print(DataAnalyzer().player_season_data("Jordan Pickford", "2022-2023"))
+print(DataAnalyzer().player_basic_data("Jordan Pickford"))
 '''
