@@ -1,3 +1,4 @@
+from selenium.common import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
@@ -26,13 +27,13 @@ class Scraper:
         try:
             btn = self.driver.find_element(By.XPATH, '//*[@id="modal-close"]')
             btn.click()
-        except:
+        except WebDriverException:
             pass
 
         try:
             cookies_button = self.driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
             cookies_button.click()
-        except:
+        except WebDriverException:
             print("No cookie button found")
 
         player["name"] = unidecode(self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[2]/h1/span').text)
@@ -42,7 +43,7 @@ class Scraper:
 
         try:
             player_img_base64 = self.driver.find_element(By.XPATH, '//*[@id="meta"]/div[1]/img').screenshot_as_base64
-        except:
+        except WebDriverException:
             print(f'Reference image not found for {player["name"]}')
 
         if full_name.find(player["name"].split(' ')[0]) != -1:
@@ -76,7 +77,7 @@ class Scraper:
         try:
             select = Select(self.driver.find_element_by_xpath('//*[@id="searchLanguage"]'))
             select.select_by_value('English')
-        except:
+        except WebDriverException:
             pass
 
         m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
@@ -96,7 +97,7 @@ class Scraper:
         wiki_img_base64 = None
         try:
             wiki_img_base64 = self.driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[1]/td/span/a/img').screenshot_as_base64
-        except:
+        except WebDriverException:
             pass
         self.player_repository.write_data(player_url, player, player_img_base64, wiki_img_base64)
         return player
@@ -117,7 +118,7 @@ class Scraper:
         try:
             cookies_button = self.driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]')
             cookies_button.click()
-        except:
+        except WebDriverException:
             print("No cookie button found")
 
         # Parse the document into result[]
