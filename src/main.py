@@ -189,16 +189,16 @@ def player_button_click_handler(call: CallbackQuery):
     caption += basic_data['footed'] and f"<b>Footed:</b> {basic_data['footed']}\n"
     caption += basic_data['shortDescription'] and f"<b>About:</b> {basic_data['shortDescription']}\n\n"
     if analyzer.isGK(player_name):
-        is_stats_available = basic_data['squad'] and basic_data['leagueRank'] and basic_data['cleanSheets'] and basic_data[
+        is_stats_available = basic_data['squad'] and basic_data['competition'] and basic_data['leagueRank'] and basic_data['cleanSheets'] and basic_data[
             'goalsAgainst']
     else:
-        is_stats_available = basic_data['squad'] and basic_data['leagueRank'] and basic_data['goals'] and basic_data[
+        is_stats_available = basic_data['squad'] and basic_data['competition'] and basic_data['leagueRank'] and basic_data['goals'] and basic_data[
             'assists']
     caption += is_stats_available and f"<b>Season 2023-2024</b>\n"
     caption += is_stats_available and f"\n"
     caption += basic_data['squad'] and f"<b>Squad:</b> {basic_data['squad']}\n"
     caption += basic_data['leagueRank'] and f"<b>Rank:</b> {basic_data['leagueRank']}\n"
-
+    caption += basic_data['competition'] and f'<b>Competition:</b> {basic_data["competition"]}\n'
     if analyzer.isGK(player_name):
         caption += basic_data['cleanSheets'] and f"<b>Clean Sheets:</b> {basic_data['cleanSheets']}\n"
         caption += basic_data['goalsAgainst'] and f"<b>Goals Against:</b> {basic_data['goalsAgainst']}\n"
@@ -378,7 +378,7 @@ def player_button_click_handler(call: CallbackQuery):
             text += data['age'] and f'<b>Age:</b> {data["age"]}\n'
             text += data['squad'] and f'<b>Squad:</b> {data["squad"]}\n'
             text += data['leagueRank'] and f'<b>League Rank:</b> {data["leagueRank"]}\n'
-
+            text += data['competition'] and f'<b>Competition:</b> {data["competition"]}\n'
             if analyzer.isGK(name):
                 text += data['cleanSheets'] and f"<b>Clean Sheets:</b> {data['cleanSheets']}\n"
                 text += data['goalsAgainst'] and f"<b>Goals Against:</b> {data['goalsAgainst']}\n"
