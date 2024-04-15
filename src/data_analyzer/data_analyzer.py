@@ -81,6 +81,7 @@ class DataAnalyzer:
         player_basic_data["shortDescription"] = player_data["shortDescription"]
         player_basic_data["squad"] = season_2023_2024["squad"]
         player_basic_data["leagueRank"] = season_2023_2024["leagueRank"]
+        player_basic_data["competition"] = season_2023_2024["competition"]
         player_basic_data["age"] = season_2023_2024["age"]
         if self.isGK(player_data["name"]):
             season_2023_2024_gk = player_data["standard_goalkeeping"]["2023-2024"]
@@ -99,6 +100,7 @@ class DataAnalyzer:
         season_data['season'] = season
         season_data['age'] = data['age']
         season_data['squad'] = data['squad']
+        season_data["competition"] = data["competition"]
         season_data['leagueRank'] = data['leagueRank']
         if self.isGK(player_name):
             gk_data = self.get_player_data(player_name)['standard_goalkeeping'][season]
@@ -120,14 +122,14 @@ class DataAnalyzer:
     def check_graphs_age(self, player_name, graph_type, graph_name):
         player_data_filepath = '../resources/data/parsed_players/' + player_name + '/'
         if os.path.exists(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png'):
-            ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
-            c_ti = datetime.fromtimestamp(ti_c)
+                ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
+                c_ti = datetime.fromtimestamp(ti_c)
 
-            with open(player_data_filepath + player_name + '.json', 'rb') as file:
-                if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
-                    return True
-                else:
-                    return False
+                with open(player_data_filepath + player_name + '.json', 'rb') as file:
+                    if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
+                        return True
+                    else:
+                        return False
         else:
             return False
 
@@ -626,17 +628,16 @@ results = analyzer.search_players('Pickford')
 scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
 
 data = analyzer.get_player_data(results[0][0])
-print(analyzer.player_graph_standard_ga('Kevin De Bruyne'))
-print(analyzer.player_graph_standard_cards('Kevin De Bruyne'))
-print(analyzer.player_graph_passing_distance(''))
-print(analyzer.player_graph_passing_assists('Kevin De Bruyne'))
-print(analyzer.player_graph_shooting('Kevin De Bruyne'))
+print(analyzer.player_graph_standard_ga("Jordan Pickford"))
+print(analyzer.player_graph_standard_cards("Jordan Pickford"))
+print(analyzer.player_graph_passing_distance("Jordan Pickford"))
+print(analyzer.player_graph_passing_assists("Jordan Pickford"))
+print(analyzer.player_graph_shooting("Jordan Pickford"))
 
 DataAnalyzer().player_graph_bgk_penalties("Jordan Pickford")
 DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 DataAnalyzer().player_graph_agk("Jordan Pickford")
 DataAnalyzer().player_graph_agk_passes("Jordan Pickford")
-Kevin De Bruyne
 
 driver.quit()
 print(DataAnalyzer().player_season_data("Jordan Pickford", "2022-2023"))
