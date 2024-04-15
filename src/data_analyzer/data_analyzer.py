@@ -211,7 +211,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         #save the graph to the player dir
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'ga-graph.png')
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'Goals_Assists.png')
         plt.savefig(path)
         plt.show()
         return DataAnalyzer().path_for_btn(path)
@@ -254,7 +254,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'cards-graph.png')
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'Cards.png')
         plt.savefig(path)
         plt.show()
         return DataAnalyzer().path_for_btn(path)
@@ -323,7 +323,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'shots', 'shots-graph.png')
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'shots', 'Shots_Goals.png')
         plt.savefig(path)
         plt.show()
         return DataAnalyzer().path_for_btn(path)
@@ -379,7 +379,7 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         # save the graph to the player dir
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'assists-graph.png')
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'Assists.png')
         plt.savefig(path)
         plt.show()
         return DataAnalyzer().path_for_btn(path)
@@ -445,27 +445,80 @@ class DataAnalyzer:
         plt.ylim(0, 100)
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'passes-graph.png')
+        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'passing', 'Passes.png')
         plt.savefig(path)
         plt.show()
-        return DataAnalyzer().path_for_btn(path)
+        return self.path_for_btn(path)
 
     def player_graph_bgk_penalties(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='bgk', graph_name='penalties'):
             return
         player_data = self.get_player_data(player_name)
 
+        seasons = []
+        pen_att = []
+        pen_sav = []
+        pen_eff = []
+
+        sh_att = []
+        sh_sav = []
+        sh_eff = []
+        seasons_with_data = []
+
+        def get_gk_stats(stats, stats_type, stats_data):
+            performance = stats.get(stats_type, {})
+            result = performance.get(stats_data, {})
+            # Convert empty strings to 0
+            result = int(result) if result else 0
+            return result
+
+        for season, stats in player_data["standard_goalkeeping"].items():
+            seasons.append(season)
+            pen_att.append(get_gk_stats(stats, 'penalty', 'attempted'))
+            pen_sav.append(get_gk_stats(stats, 'penalty', 'saved'))
+
+            sh_att.append(get_gk_stats(stats, 'performance', 'shotsOnTargetAgainst'))
+            sh_sav.append(get_gk_stats(stats, 'performance', 'saves'))
+
+            if pen_att[-1] == 0:
+                eff_pen_att = pen_att[-1] + 1
+                pen_eff.append(round(pen_sav[-1] / eff_pen_att, 2) * 100)
+            else:
+                pen_eff.append(round(pen_sav[-1] / pen_att[-1], 2) * 100)
+
+            if sh_att[-1] == 0:
+                eff_sh_att = sh_att[-1] + 1
+                sh_eff.append(round(sh_sav[-1] / eff_sh_att, 2) * 100)
+            else:
+                sh_eff.append(round(sh_sav[-1] / sh_att[-1], 2) * 100)
+
+        zero_count = pen_att.count(0)
+        pen_att = pen_att[zero_count:]
+        pen_sav = pen_sav[zero_count:]
+        pen_eff = pen_eff[zero_count:]
+
+        sh_att = sh_att[zero_count:]
+        sh_sav = sh_sav[zero_count:]
+        sh_eff = sh_eff[zero_count:]
+        seasons_with_data = seasons[zero_count:]
+
+        print(sh_eff)
+        print(sh_att)
+        print(sh_sav)
+        print(seasons_with_data)
+
         plt.figure(figsize=(10, 6))
-        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.plot(seasons_with_data, sh_eff, linewidth=5, color='red', label='Shots Saving')
+        plt.plot(seasons_with_data, pen_eff, linewidth=5, color='blue', label='Penalties Saving')
         plt.legend()
         plt.grid(linestyle='-')
-        plt.title("Penalties")
+        plt.title("Penalties/Shots Saving Efficiency")
         plt.xlabel("Season")
-        plt.ylabel("Penalties Efficiency, %")
-        plt.ylim()
+        plt.ylabel("Penalties/Shots Saving Efficiency, %")
+        plt.ylim(0, 100)
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'penalties-graph.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'Penalties_Shots.png')
         plt.savefig(path)
         plt.show()
 
@@ -474,17 +527,36 @@ class DataAnalyzer:
             return
         player_data = self.get_player_data(player_name)
 
+        sh_att = []
+        sh_sav = []
+        sh_ag = []
+        seasons = []
+        def get_gk_stats(stats, stats_type, stats_data):
+            performance = stats.get(stats_type, {})
+            result = performance.get(stats_data, {})
+            # Convert empty strings to 0
+            result = int(result) if result else 0
+            return result
+
+        for season, stats in player_data["standard_goalkeeping"].items():
+            seasons.append(season)
+            sh_att.append(get_gk_stats(stats, 'performance', 'shotsOnTargetAgainst'))
+            sh_sav.append(get_gk_stats(stats, 'performance', 'saves'))
+            sh_ag.append(get_gk_stats(stats, 'performance', 'goalsAgainst'))
+
         plt.figure(figsize=(10, 6))
-        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.plot(seasons, sh_att, linewidth=5, color='yellow', label='Shots On Target')
+        plt.plot(seasons, sh_sav, linewidth=5, color='green', label='Shots Saved')
+        plt.plot(seasons, sh_ag, linewidth=5, color='red', label='Goals')
         plt.legend()
         plt.grid(linestyle='-')
-        plt.title("Saves")
+        plt.title("Shots On Target Efficiency")
         plt.xlabel("Season")
-        plt.ylabel("Efficiency, %")
+        plt.ylabel("Shots/Goals/Saves")
         plt.ylim()
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'saves-graph.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'Saves.png')
         plt.savefig(path)
         plt.show()
 
@@ -503,7 +575,7 @@ class DataAnalyzer:
         plt.ylim()
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'main-graph.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'Advanced-Data.png')
         plt.savefig(path)
         plt.show()
 
@@ -522,7 +594,7 @@ class DataAnalyzer:
         plt.ylim()
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'sweeper-graph.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'Sweeper-Activities.png')
         plt.savefig(path)
         plt.show()
 
@@ -541,7 +613,7 @@ class DataAnalyzer:
         plt.ylim()
         plt.xticks(rotation=45)
         plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'passes-graph.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'Passes.png')
         plt.savefig(path)
         plt.show()
 
@@ -574,4 +646,5 @@ Kevin De Bruyne
 driver.quit()
 print(DataAnalyzer().player_season_data("Jordan Pickford", "2022-2023"))
 print(DataAnalyzer().player_basic_data("Jordan Pickford"))
+DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 '''
