@@ -174,7 +174,7 @@ class DataAnalyzer:
     def get_int_stats(self, stats, stats_data):
         result = stats.get(stats_data, {})
         # Convert empty strings to 0
-        result = int(result) if result else 0.0
+        result = int(result) if result else 0
         return result
 
     def get_float_stats(self, stats, stats_data):
@@ -188,9 +188,10 @@ class DataAnalyzer:
         skipped_count = len(seasons) - len(full_seasons)
         return full_seasons, skipped_count
 
-    ########################################################################################################################
-    #                                                        GRAPHS                                                        #
-    ########################################################################################################################
+########################################################################################################################
+#                                                        GRAPHS                                                        #
+########################################################################################################################
+
 
     def player_graph_standard_ga(self, player_name):
 
@@ -206,7 +207,7 @@ class DataAnalyzer:
         index = 0
         for season, stats in player_data["standard_stats"].items():
             seasons.append(season)
-
+            goals_scored.append(self.get_int_performance_stats(stats, "goals", stats))
             if stats['performance']['goals'] == "":
                 goals_scored.append(0)
             else:
@@ -347,7 +348,6 @@ class DataAnalyzer:
             else:
                 exp_match_eff.append(0.0)
 
-        print(exp_match_eff)
 
         zero_count = exp_match_eff.count(0.0)
         seasons_with_exp = seasons[zero_count:]
@@ -606,11 +606,6 @@ class DataAnalyzer:
         sh_eff = sh_eff[zero_count:]
         seasons_with_data = seasons[zero_count:]
 
-        print(sh_eff)
-        print(sh_att)
-        print(sh_sav)
-        print(seasons_with_data)
-
         plt.figure(figsize=(10, 6))
         plt.plot(seasons_with_data, sh_eff, linewidth=5, color='red', label='Shots Saving')
         plt.plot(seasons_with_data, pen_eff, linewidth=5, color='blue', label='Penalties Saving')
@@ -654,13 +649,9 @@ class DataAnalyzer:
 
             if matches[-1] != 0:
                 great_matches.append(round((cleanSheets[-1] / matches[-1]), 2) * 100)
-                print(round((cleanSheets[-1] / matches[-1]), 2))
             else:
                 great_matches.append(0.0)
 
-        print(matches)
-        print(cleanSheets)
-        print(great_matches)
         plt.figure(figsize=(10, 6))
         plt.plot(seasons, great_matches, linewidth=5, color='yellow', label='Clean Sheet Matches %')
         plt.plot(seasons, sh_eff, linewidth=5, color='green', label='Shots Saved %')
@@ -755,13 +746,10 @@ class DataAnalyzer:
             #% of the length
             distance_part.append(round((avgDistOfDefActions[-1] / field_length), 2) * 100)
 
-        print(outside_freq)
         zero_count = distance_part.count(0.0)
         distance_part = distance_part[zero_count:]
         outside_freq = outside_freq[zero_count:]
         seasons_with_data = seasons[zero_count:]
-        print(seasons_with_data)
-        print(distance_part)
 
         plt.figure(figsize=(10, 6))
         plt.plot(seasons_with_data, distance_part, linewidth=5, color='yellow', label=' avg % of field distance')
@@ -784,24 +772,53 @@ class DataAnalyzer:
             return
 
         seasons = []
-        passesAttempted = []
-        passesCompletedLaunched = []
+        seasons_with_data = []
+        passes_attempted = []
+        launches_attempted = []
+        matches = []
+        launches_att_by_match = []
+        passes_att_by_match = []
+        i = 0
 
         player_data = self.get_player_data(player_name)
 
+        for season, stats in player_data["standard_stats"].items():
+            matches.append(self.get_int_stats(stats, 'matchesPlayed'))
+
+        for season, stats in player_data["advanced_goalkeeping"].items():
+            seasons.append(season)
+            passes_attempted.append(self.get_int_stats(stats, 'passesAttempted'))
+            launches_attempted.append(self.get_int_stats(stats, 'passesAttemptedLaunched'))
+
+            if matches[i] != 0:
+                launches_att_by_match.append(round((launches_attempted[-1] / matches[i]), 2))
+                passes_att_by_match.append(round((passes_attempted[-1] / matches[i]), 2))
+            else:
+                launches_att_by_match.append(0.0)
+                passes_att_by_match.append(0.0)
+
+            i = i + 1
+
+        zero_count = launches_att_by_match.count(0.0)
+        launches_att_by_match = launches_att_by_match[zero_count:]
+        passes_att_by_match = passes_att_by_match[zero_count:]
+        seasons_with_data = seasons[zero_count:]
+
         plt.figure(figsize=(10, 6))
-        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.plot(seasons_with_data, launches_att_by_match, linewidth=5, color='yellow', label='Launch Attempts by Match')
+        plt.plot(seasons_with_data, passes_att_by_match, linewidth=5, color='green', label='Pass Attempts by Match')
         plt.legend()
         plt.grid(linestyle='-')
-        plt.title("Stats")
+        plt.title("Pass/Launch Attempts")
         plt.xlabel("Season")
-        plt.ylabel("Efficiency, %")
+        plt.ylabel("Number by match")
         plt.ylim()
         plt.xticks(rotation=45)
         plt.tight_layout()
         path = self.graph_path(unidecode(player_data["name"]), 'agk', 'Passes.png')
         plt.savefig(path)
         plt.show()
+
 
 
 '''
@@ -813,12 +830,13 @@ options.add_argument("window-size=1920,1080")
 driver = webdriver.Chrome(options=options)
 scraper = Scraper(repository, webdriver.Chrome())
 analyzer = DataAnalyzer()
-results = analyzer.search_players('Erling')
+results = analyzer.search_players('Jordan Pickford')
 #
 print(results[0][1])
-scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1])
+scraper.generate_player_data('https://fbref.com/en/players/' + results[0][1] )
 
 data = analyzer.get_player_data(results[0][0])
+
 print(analyzer.player_graph_shooting("Erling-Haaland"))
 
 print(analyzer.player_graph_standard_ga("Erling-Haaland"))
@@ -831,13 +849,18 @@ print(DataAnalyzer().player_graph_shooting("Jordan Pickford"))
 DataAnalyzer().player_graph_bgk_penalties("Jordan Pickford")
 DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 DataAnalyzer().player_graph_agk("Jordan Pickford")
+
 DataAnalyzer().player_graph_agk_passes("Jordan Pickford")
 
 driver.quit()
 print(DataAnalyzer().player_season_data("Jordan Pickford", "2022-2023"))
 print(DataAnalyzer().player_basic_data("Jordan Pickford"))
 DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
+DataAnalyzer().player_graph_agk_passes("Jordan Pickford")
+analyzer = DataAnalyzer()
 '''
+
+
 
 #DataAnalyzer().player_graph_shooting_distance("Kevin-De-Bruyne")
 #print(DataAnalyzer().player_season_data("Jordan Pickford", '2021-2022'))
