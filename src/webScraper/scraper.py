@@ -63,10 +63,12 @@ class Scraper:
             if 'Born: ' in row.text:
                 player['nationality'] = " ".join(row.text.split(', ')[-1].strip().split(' ')[:-1])
 
-        player["standard_stats"] = self.parse_standard_stats()
-        player["shooting_stats"] = self.parse_shooting_stats()
-        player["passing_stats"] = self.parse_passing_stats()
-        if player["position"] == 'GK':
+        if player["position"] != 'GK':
+            player["standard_stats"] = self.parse_standard_stats()
+            player["shooting_stats"] = self.parse_shooting_stats()
+            player["passing_stats"] = self.parse_passing_stats()
+        else:
+            player["standard_stats"] = self.parse_standard_stats()
             player["standard_goalkeeping"] = self.parse_standard_goalkeeping()
             player['advanced_goalkeeping'] = self.parse_advanced_goalkeeping()
 
@@ -80,8 +82,7 @@ class Scraper:
 
         m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
         m.click()
-        m.send_keys(player.get("fullName", player["name"]) + ' footballer ' + player['standard_stats']['2023-2024'].get('squad', ''))
-        time.sleep(0.2)
+        m.send_keys(player.get("fullName", player["name"]) + ' footballer ' + player['standard_stats']['2023-2024'].get('squad', '').split(' ')[0])
         m.send_keys(Keys.ENTER)
         time.sleep(0.2)
 
@@ -242,8 +243,8 @@ class Scraper:
             season["competition"] = entry.find_element(By.XPATH, './/td[4]/a').text
             season["leagueRank"] = entry.find_element(By.XPATH, './/td[5]').text
             season["matchesPlayed"] = entry.find_element(By.XPATH, './/td[6]').text
-            season["matchesPlayed"] = entry.find_element(By.XPATH, './/td[7]').text
-            season["gamesStarted"] = entry.find_element(By.XPATH, './/td[8]').text
+            season["gamesStarted"] = entry.find_element(By.XPATH, './/td[7]').text
+            season["minutesPlayed"] = entry.find_element(By.XPATH, './/td[8]').text
 
             performance = dict()
             performance["goalsAgainst"] = entry.find_element(By.XPATH, './/td[10]').text

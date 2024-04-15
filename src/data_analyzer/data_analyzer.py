@@ -84,7 +84,7 @@ class DataAnalyzer:
         player_basic_data["age"] = season_2023_2024["age"]
         if self.isGK(player_data["name"]):
             season_2023_2024_gk = player_data["standard_goalkeeping"]["2023-2024"]
-            player_basic_data['CS'] = 'Clean Sheets'
+            player_basic_data['cleanSheets'] = season_2023_2024_gk['performance']['cleanSheets']
             player_basic_data['goalsAgainst'] = season_2023_2024_gk['performance']['goalsAgainst']
         else:
             player_basic_data['goals'] = season_2023_2024['performance']['goals']
@@ -102,7 +102,7 @@ class DataAnalyzer:
         season_data['leagueRank'] = data['leagueRank']
         if self.isGK(player_name):
             gk_data = self.get_player_data(player_name)['standard_goalkeeping'][season]
-            season_data['CS'] = 'Clean Sheets'
+            season_data['cleanSheets'] = gk_data['performance']['cleanSheets']
             season_data['goalsAgainst'] = gk_data['performance']['goalsAgainst']
         else:
             season_data['goals'] = data['performance']['goals']

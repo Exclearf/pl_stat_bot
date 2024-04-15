@@ -47,6 +47,10 @@ def text_handler(message: Message):
         user_data[message.from_user.id]
     except:
         user_data[message.from_user.id] = dict()
+    try:
+        user_data[message.from_user.id]['isParsing']
+    except:
+        user_data[message.from_user.id]['isParsing'] = None
     user_data[message.from_user.id]['data'] = player_data
     next_message_id = message.message_id + 1
     try:
@@ -57,9 +61,7 @@ def text_handler(message: Message):
     user_data[message.from_user.id][next_message_id]['last_search'] = 0
 
     player_data_length = len(player_data)
-    total_pages = math.floor(player_data_length / ITEMS_PER_SEARCH_PAGE)
-    if player_data_length % ITEMS_PER_SEARCH_PAGE == 0:
-        total_pages -= 1
+    total_pages = math.ceil(player_data_length / ITEMS_PER_SEARCH_PAGE) - 1
 
     markup = generate_markup(player_data, 0, total_pages)
     with open('../resources/images/Search Results.png', 'rb') as image:
@@ -73,9 +75,7 @@ def text_handler(message: Message):
 def callback_query_handler(call):
     data = call.data
     items = user_data[call.from_user.id]['data']
-    total_pages = math.floor(len(items) / ITEMS_PER_SEARCH_PAGE)
-    if len(items) % ITEMS_PER_SEARCH_PAGE == 0:
-        total_pages -= 1
+    total_pages = math.ceil(len(items) / ITEMS_PER_SEARCH_PAGE) - 1
     try:
         current_page = int(call.json['message']['reply_markup']['inline_keyboard'][-1][1]['text'].split('/')[0]) - 1
     except:
@@ -136,6 +136,12 @@ def prepare_for_scraping(player_link, chat_id, message_id):
                                    media=InputMediaPhoto(image))
         return False
 
+def concurrent_error_handler(call: CallbackQuery, ):
+    with open('../resources/images/Wait for previous.png', 'rb') as image:
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton(text="Back to the results", callback_data=f"{user_data[call.from_user.id][call.message.message_id]['last_search']}_goto_player_search_list"))
+        bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                           media=InputMediaPhoto(image), reply_markup=keyboard)
 
 @bot.callback_query_handler(func=lambda call: '_playerUrl' in call.data)
 def player_button_click_handler(call: CallbackQuery):
@@ -147,38 +153,58 @@ def player_button_click_handler(call: CallbackQuery):
     if os.path.exists(player_data_filepath):
         with open(player_data_filepath + player_id.split('/')[-1] + '.json', 'rb') as file:
             if datetime.now() - datetime.fromisoformat(json.load(file)['creationDate']) > timedelta(minutes=60):
+                if user_data[call.from_user.id]['isParsing'] is False or user_data[call.from_user.id]['isParsing'] is None:
+                    user_data[call.from_user.id]['isParsing'] = True
+                else:
+                    concurrent_error_handler(call)
+                    return
                 success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
+                user_data[call.from_user.id]['isParsing'] = False
                 if not success:
                     return
     else:
+        if user_data[call.from_user.id]['isParsing'] is False or user_data[call.from_user.id]['isParsing'] is None:
+            user_data[call.from_user.id]['isParsing'] = True
+        else:
+            concurrent_error_handler(call)
+            return
         success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id,
                                        message_id=call.message.message_id)
+        user_data[call.from_user.id]['isParsing'] = False
         if not success:
             return
 
-    data = analyzer.get_player_data(player_name)
-    basic_data = analyzer.player_basic_data(data)
+    data = analyzer.get_player_data(player_id.split('/')[-1])
+    basic_data = analyzer.player_basic_data(player_id.split('/')[-1])
     seasons = analyzer.player_years(data)
-    total_pages = math.floor(len(seasons) / ITEMS_PER_SEASON_PAGE)
-    if len(seasons) % ITEMS_PER_SEASON_PAGE == 0:
-        total_pages -= 1
+    total_pages = math.ceil(len(seasons) / ITEMS_PER_SEASON_PAGE) - 1
     caption = ""
     caption += basic_data['fullName'] and f"<b>General information:</b>\n"
     caption += f"\n"
     caption += basic_data['fullName'] and f"<b>Full Name:</b> {basic_data['fullName']}\n"
     caption += basic_data['age'] and f"<b>Age:</b> {basic_data['age']}\n"
+    caption += basic_data.get('club', basic_data['squad']) and f"<b>Club:</b> {basic_data.get('club', basic_data['squad'])}\n"
     caption += basic_data['nationality'] and f"<b>Nation:</b> {basic_data['nationality']}\n"
     caption += basic_data['position'] and f"<b>Position:</b> {basic_data['position']}\n"
     caption += basic_data['footed'] and f"<b>Footed:</b> {basic_data['footed']}\n"
     caption += basic_data['shortDescription'] and f"<b>About:</b> {basic_data['shortDescription']}\n\n"
-
-    is_stats_available = basic_data['squad'] and basic_data['leagueRank'] and basic_data['goals'] and basic_data['assists']
+    if analyzer.isGK(player_name):
+        is_stats_available = basic_data['squad'] and basic_data['leagueRank'] and basic_data['cleanSheets'] and basic_data[
+            'goalsAgainst']
+    else:
+        is_stats_available = basic_data['squad'] and basic_data['leagueRank'] and basic_data['goals'] and basic_data[
+            'assists']
     caption += is_stats_available and f"<b>Season 2023-2024</b>\n"
     caption += is_stats_available and f"\n"
     caption += basic_data['squad'] and f"<b>Squad:</b> {basic_data['squad']}\n"
     caption += basic_data['leagueRank'] and f"<b>Rank:</b> {basic_data['leagueRank']}\n"
-    caption += basic_data['goals'] and f"<b>Goals:</b> {basic_data['goals']}\n"
-    caption += basic_data['assists'] and f"<b>Assists:</b> {basic_data['assists']}\n"
+
+    if analyzer.isGK(player_name):
+        caption += basic_data['cleanSheets'] and f"<b>Clean Sheets:</b> {basic_data['cleanSheets']}\n"
+        caption += basic_data['goalsAgainst'] and f"<b>Goals Against:</b> {basic_data['goalsAgainst']}\n"
+    else:
+        caption += basic_data['goals'] and f"<b>Goals:</b> {basic_data['goals']}\n"
+        caption += basic_data['assists'] and f"<b>Assists:</b> {basic_data['assists']}\n"
 
     season = 0
     try:
@@ -214,34 +240,69 @@ def player_button_click_handler(call: CallbackQuery):
     image.close()
 
 @bot.callback_query_handler(func=lambda call: '__do_nothing' in call.data)
-def create_standard_stat_data_message(call: CallbackQuery):
+def do_nothing_handler(call: CallbackQuery):
     return
 
+def getGraphDisplayName(name):
+    return "".join(name.replace('_', '/').replace('-', ' '))
+
 @bot.callback_query_handler(func=lambda call: '_statistic-page' in call.data)
-def create_standard_stat_data_message(call: CallbackQuery):
+def create_stat_data_message(call: CallbackQuery):
     data_parts = call.data.split('_')
     name = data_parts[0]
     season = data_parts[1]
-    graph_type = data_parts[2]
-    graph_index = data_parts[3]
+    graph_index = data_parts[2]
+    graph_type = data_parts[3]
 
-    if(graph_index == 'statistics'):
-        graph_index = '0'
+    graph_list = []
+
+    match graph_type:
+        case 'standard':
+            graph_list = ['Goals_Assists', 'Cards']
+        case 'passing':
+            graph_list = ['Assists', 'Passes']
+        case 'shooting':
+            graph_list = ['Shots-Goals2', 'Shots-Goals']
+        case 'bgk':
+            graph_list = ['Penalties_Shots', 'Saves']
+        case 'agk':
+            graph_list = ['Advanced-Data', 'Passes', 'Sweeper-Activities']
 
     keyboard = InlineKeyboardMarkup()
     image_path = '../resources/images/Error.png'
-    match(graph_index):
+    match graph_index:
         case '0':
-            row = [InlineKeyboardButton(text="Goals / Assists \U00002705", callback_data=f'__do_nothing'),
-                          InlineKeyboardButton(text='Cards', callback_data=f'{name}_{season}_{graph_type}_1_statistic-page')]
-            keyboard.row(*row)
+            row = [InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[0])} \U00002705", callback_data=f'__do_nothing'),
+                          InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[1])}', callback_data=f'{name}_{season}_1_{graph_type}_statistic-page')]
 
-            image_path = f'../resources/data/parsed_players/{name}/graph/standard/ga-graph.png'
+            keyboard.row(*row)
+            if graph_type == 'agk':
+                keyboard.add(InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[2])}', callback_data=f'{name}_{season}_2_{graph_type}_statistic-page'))
+
+            image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[0]}.png'
         case '1':
-            keyboard.row(InlineKeyboardButton(text="Goals / Assists",
-                                               callback_data=f'{name}_{season}_{graph_type}_0_statistic-page'),
-                          InlineKeyboardButton(text='Cards \U00002705', callback_data=f'__do_nothing'))
-            image_path = f'../resources/data/parsed_players/{name}/graph/standard/cards-graph.png'
+            row = [InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[0])}',
+                                               callback_data=f'{name}_{season}_0_{graph_type}_statistic-page'),
+                          InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[1])} \U00002705', callback_data=f'__do_nothing')]
+
+            keyboard.row(*row)
+            if graph_type == 'agk':
+                keyboard.add(InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[2])}', callback_data=f'{name}_{season}_2_{graph_type}_statistic-page'))
+
+            image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[1]}.png'
+        case '2':
+            row = [InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[0])}",
+                                        callback_data=f'{name}_{season}_0_{graph_type}_statistic-page'),
+                   InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[1])}", callback_data=f'{name}_{season}_1_{graph_type}_statistic-page')]
+
+            keyboard.row(*row)
+            if graph_type == 'agk':
+                keyboard.add(
+                    InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[2])}  \U00002705", callback_data=f'__do_nothing'))
+
+
+            image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[2]}.png'
+
 
     keyboard.add(InlineKeyboardButton(text='Back', callback_data=f'{name}_{season}_display-seasons'))
     with open(image_path, 'rb') as image:
@@ -254,26 +315,30 @@ def player_button_click_handler(call: CallbackQuery):
     data_parts = call.data.split('_')
     player_name = data_parts[0]
     season = data_parts[1]
-    graph_type = data_parts[2]
+    graph_type = data_parts[3]
 
     match(graph_type):
-        case 'basic':
+        case 'standard':
             analyzer.player_graph_standard_ga(player_name)
             analyzer.player_graph_standard_cards(player_name)
-            create_standard_stat_data_message(call)
+            create_stat_data_message(call)
         case 'passing':
-            analyzer.player_graph_passing_assists()
-            analyzer.player_graph_passing_distance()
+            analyzer.player_graph_passing_assists(player_name)
+            analyzer.player_graph_passing_distance(player_name)
+            create_stat_data_message(call)
         case 'shooting':
-            analyzer.player_graph_shooting()
-            # analyzer.player_graph_shooting_advanced()
-        case 'basic-gk':
-            analyzer.player_graph_bgk_penalties()
-            analyzer.player_graph_bgk_saves()
-        case 'advanced-gk':
-            analyzer.player_graph_agk()
-            analyzer.player_graph_agk_sweeper()
-            analyzer.player_graph_agk_passes()
+            analyzer.player_graph_shooting(player_name)
+            # analyzer.player_graph_shooting_advanced(player_name)
+            create_stat_data_message(call)
+        case 'bgk':
+            analyzer.player_graph_bgk_penalties(player_name)
+            analyzer.player_graph_bgk_saves(player_name)
+            create_stat_data_message(call)
+        case 'agk':
+            analyzer.player_graph_agk(player_name)
+            analyzer.player_graph_agk_sweeper(player_name)
+            analyzer.player_graph_agk_passes(player_name)
+            create_stat_data_message(call)
 
 
 @bot.callback_query_handler(func=lambda call: 'display-seasons' in call.data)
@@ -281,7 +346,7 @@ def player_button_click_handler(call: CallbackQuery):
     data_parts = call.data.split('_')
     name = data_parts[0]
     season = data_parts[1]
-    is_goal_keeper = analyzer.is_goal_keeper(name)
+    is_goal_keeper = analyzer.isGK(name)
     text = ''
     keyboard = InlineKeyboardMarkup()
     if season == 'all':
@@ -290,16 +355,16 @@ def player_button_click_handler(call: CallbackQuery):
                                    media=InputMediaPhoto(image))
         if is_goal_keeper:
             keyboard.add(
-                InlineKeyboardButton(text=f"Standard Goalkeeping", callback_data=f"{name}_{season}_basic-gk_statistics"))
+                InlineKeyboardButton(text=f"Standard Goalkeeping", callback_data=f"{name}_{season}_0_bgk_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Advanced Goalkeeping", callback_data=f"{name}_{season}_advanced-gk_statistics"))
+                InlineKeyboardButton(text=f"Advanced Goalkeeping", callback_data=f"{name}_{season}_0_agk_statistics"))
         else:
             keyboard.add(
-                InlineKeyboardButton(text=f"Standard Statistic", callback_data=f"{name}_{season}_basic_statistics"))
+                InlineKeyboardButton(text=f"Standard Statistic", callback_data=f"{name}_{season}_0_standard_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Passing Statistic", callback_data=f"{name}_{season}_passing_statistics"))
+                InlineKeyboardButton(text=f"Passing Statistic", callback_data=f"{name}_{season}_0_passing_statistics"))
             keyboard.add(
-                InlineKeyboardButton(text=f"Shooting Statistic", callback_data=f"{name}_{season}_shooting_statistics"))
+                InlineKeyboardButton(text=f"Shooting Statistic", callback_data=f"{name}_{season}_0_shooting_statistics"))
 
     else:
         data = analyzer.player_season_data(name, season)
@@ -313,8 +378,13 @@ def player_button_click_handler(call: CallbackQuery):
             text += data['age'] and f'<b>Age:</b> {data["age"]}\n'
             text += data['squad'] and f'<b>Squad:</b> {data["squad"]}\n'
             text += data['leagueRank'] and f'<b>League Rank:</b> {data["leagueRank"]}\n'
-            text += data['goals'] and f'<b>Goals:</b> {data["goals"]}\n'
-            text += data['assists'] and f'<b>Assists:</b> {data["assists"]}\n'
+
+            if analyzer.isGK(name):
+                text += data['cleanSheets'] and f"<b>Clean Sheets:</b> {data['cleanSheets']}\n"
+                text += data['goalsAgainst'] and f"<b>Goals Against:</b> {data['goalsAgainst']}\n"
+            else:
+                text += data['goals'] and f"<b>Goals:</b> {data['goals']}\n"
+                text += data['assists'] and f"<b>Assists:</b> {data['assists']}\n"
 
             with open('../resources/images/Season result.png', 'rb') as image:
                 bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id, media=InputMediaPhoto(image))
@@ -331,9 +401,7 @@ def player_button_click_handler(call: CallbackQuery):
     player_name = data_parts[0]
     data = analyzer.get_player_data(player_name)
     seasons = analyzer.player_years(data)
-    total_pages = math.floor(len(seasons) / ITEMS_PER_SEASON_PAGE)
-    if len(seasons) % ITEMS_PER_SEASON_PAGE == 0:
-        total_pages -= 1
+    total_pages = math.ceil(len(seasons) / ITEMS_PER_SEASON_PAGE) - 1
     try:
         with open(user_data[call.from_user.id][call.message.message_id]['last_image_path'], 'rb') as image:
             bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
@@ -364,9 +432,7 @@ def callback_query_handler(call):
     data = call.data
     player_name = call.data.split('_')[0]
     seasons = analyzer.player_years(analyzer.get_player_data(player_name))
-    total_pages = math.floor(len(seasons) / ITEMS_PER_SEASON_PAGE)
-    if len(seasons) % ITEMS_PER_SEASON_PAGE == 0:
-        total_pages -= 1
+    total_pages = math.ceil(len(seasons) / ITEMS_PER_SEASON_PAGE) - 1
     try:
         current_page = int(call.json['message']['reply_markup']['inline_keyboard'][-2][1]['text'].split('/')[0]) - 1
     except:
@@ -419,7 +485,7 @@ def generate_markup_seasons(player_name, player_seasons, page, total_pages, call
                                              callback_data=f"{player_name}_{season}_display-seasons")
         keyboard.add(season_button)
 
-    if total_pages > 1:
+    if total_pages > 0:
         row = [InlineKeyboardButton(text="◄", callback_data=f"{player_name}_back_player_seasons"),
                InlineKeyboardButton(text=f"{page + 1}/{total_pages + 1}",
                                     callback_data=f"{player_name}_current_page_player_seasons"),
