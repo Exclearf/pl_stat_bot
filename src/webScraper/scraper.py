@@ -9,7 +9,6 @@ from datetime import datetime
 
 class Scraper:
     def __init__(self, repo, driver):
-        self.driver = None
         self.player_repository = repo
         self.driver = driver
 
@@ -127,7 +126,7 @@ class Scraper:
             data.append([link.text, link.get_attribute("href").replace('https://fbref.com/en/players/', '')])
 
         self.player_repository.write_dataset(header, data)
-        print('Preparation ended')
+        print('Dataset preparation has ended')
         return
 
 
@@ -274,6 +273,7 @@ class Scraper:
             season = dict()
             season["postShotExpected"] = entry.find_element(By.XPATH, './/td[12]').text
             season["passesCompletedLaunched"] = entry.find_element(By.XPATH, './/td[16]').text
+            season["passesAttemptedLaunched"] = entry.find_element(By.XPATH, './/td[16]').text
             season["passesAttempted"] = entry.find_element(By.XPATH, './/td[19]').text
             season["defActionOutsidePenArea"] = entry.find_element(By.XPATH, './/td[29]').text
             season["avgDistOfDefActions"] = entry.find_element(By.XPATH, './/td[31]').text
