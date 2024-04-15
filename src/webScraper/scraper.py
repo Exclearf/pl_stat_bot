@@ -75,7 +75,7 @@ class Scraper:
         # Go to wiki for short bio
         self.driver.get("https://wikipedia.org/")
         try:
-            select = Select(self.driver.find_element_by_xpath('//*[@id="searchLanguage"]'))
+            select = Select(self.driver.find_element(By.XPATH, '//*[@id="searchLanguage"]'))
             select.select_by_value('English')
         except WebDriverException:
             pass
@@ -274,7 +274,7 @@ class Scraper:
             season = dict()
             season["postShotExpected"] = entry.find_element(By.XPATH, './/td[12]').text
             season["passesCompletedLaunched"] = entry.find_element(By.XPATH, './/td[16]').text
-            season["passesAttemptedLaunched"] = entry.find_element(By.XPATH, './/td[16]').text
+            season["passesAttemptedLaunched"] = entry.find_element(By.XPATH, './/td[17]').text
             season["passesAttempted"] = entry.find_element(By.XPATH, './/td[19]').text
             season["defActionOutsidePenArea"] = entry.find_element(By.XPATH, './/td[29]').text
             season["avgDistOfDefActions"] = entry.find_element(By.XPATH, './/td[31]').text
