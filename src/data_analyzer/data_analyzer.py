@@ -2,6 +2,7 @@ import csv
 import re
 import sys
 from os import path
+
 from unidecode import unidecode
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,9 +44,11 @@ class DataAnalyzer:
         return path
     def graph_path(self, player_name, graph_type, graph_name):
         changed_player_name = player_name.replace(' ', '-')
-        dir = '../resources/data/parsed_players/' + changed_player_name + '/' + "graph" + "/" + graph_type
-        os.makedirs(dir, exist_ok=True)
-        path = dir + '/' + graph_name
+        dir_graph = f'../resources/data/parsed_players/{changed_player_name}/graph'
+        os.makedirs(dir_graph, exist_ok=True)
+        dir_graph_type = f'{dir_graph}/{graph_type}'
+        os.makedirs(dir_graph_type, exist_ok=True)
+        path = dir_graph_type + '/' + graph_name
         return path
 
     def path_for_btn(self, primary_path):
@@ -116,16 +119,20 @@ class DataAnalyzer:
     # if CreationDate(graph) > creationDate(json) -> new graph
     def check_graphs_age(self, player_name, graph_type, graph_name):
         player_data_filepath = '../resources/data/parsed_players/' + player_name + '/'
-        if os.path.exists(player_data_filepath):
-            data = self.get_player_data(player_name)
-            ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
-            c_ti = datetime.fromtimestamp(ti_c)
+        if os.path.exists(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png'):
+            if os.path.exists(player_data_filepath):
+                data = self.get_player_data(player_name)
 
-            with open(player_data_filepath + player_name + '.json', 'rb') as file:
-                if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
-                    return True
-                else:
-                    return False
+                ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
+                c_ti = datetime.fromtimestamp(ti_c)
+
+                with open(player_data_filepath + player_name + '.json', 'rb') as file:
+                    if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
+                        return True
+                    else:
+                        return False
+            else:
+                return False
         else:
             return False
 
@@ -443,6 +450,101 @@ class DataAnalyzer:
         plt.show()
         return DataAnalyzer().path_for_btn(path)
 
+    def player_graph_bgk_penalties(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='bgk', graph_name='penalties'):
+            return
+        player_data = self.get_player_data(player_name)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Penalties")
+        plt.xlabel("Season")
+        plt.ylabel("Penalties Efficiency, %")
+        plt.ylim()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'penalties-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+    def player_graph_bgk_saves(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='bgk', graph_name='saves'):
+            return
+        player_data = self.get_player_data(player_name)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Saves")
+        plt.xlabel("Season")
+        plt.ylabel("Efficiency, %")
+        plt.ylim()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'saves-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+    def player_graph_agk(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='agk', graph_name='main'):
+            return
+        player_data = self.get_player_data(player_name)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Stats")
+        plt.xlabel("Season")
+        plt.ylabel("Efficiency, %")
+        plt.ylim()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'main-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+    def player_graph_agk_sweeper(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='agk', graph_name='sweeper'):
+            return
+        player_data = self.get_player_data(player_name)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Stats")
+        plt.xlabel("Season")
+        plt.ylabel("Efficiency, %")
+        plt.ylim()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'sweeper-graph.png')
+        plt.savefig(path)
+        plt.show()
+
+    def player_graph_agk_passes(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='agk', graph_name='passes'):
+            return
+        player_data = self.get_player_data(player_name)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot([1, 2, 3], [3, 2, 1], linewidth=5, color='blue', label='Long')
+        plt.legend()
+        plt.grid(linestyle='-')
+        plt.title("Stats")
+        plt.xlabel("Season")
+        plt.ylabel("Efficiency, %")
+        plt.ylim()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        path = self.graph_path(unidecode(player_data["name"]), 'agk', 'passes-graph.png')
+        plt.savefig(path)
+        plt.show()
+
 '''
 options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
@@ -463,6 +565,10 @@ print(analyzer.player_graph_passing_distance(''))
 print(analyzer.player_graph_passing_assists('Kevin De Bruyne'))
 print(analyzer.player_graph_shooting('Kevin De Bruyne'))
 
+DataAnalyzer().player_graph_bgk_penalties("Jordan Pickford")
+DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
+DataAnalyzer().player_graph_agk("Jordan Pickford")
+DataAnalyzer().player_graph_agk_passes("Jordan Pickford")
 Kevin De Bruyne
 
 driver.quit()
