@@ -39,12 +39,12 @@ class DataAnalyzer:
     # name -> path for easier movements
     def player_path(self, player_name):
         changed_player_name = player_name.replace(' ', '-')
-        path = os.path.join('..', '..', 'resources', 'data', 'parsed_players', changed_player_name, changed_player_name)
+        path = os.path.join( '..', 'resources', 'data', 'parsed_players', changed_player_name, changed_player_name)
         return path
 
     def graph_path(self, player_name, graph_type, graph_name):
         changed_player_name = player_name.replace(' ', '-')
-        dir_graph_type = os.path.join('..', '..', 'resources', 'data', 'parsed_players', changed_player_name, 'graph', graph_type)
+        dir_graph_type = os.path.join( '..', 'resources', 'data', 'parsed_players', changed_player_name, 'graph', graph_type)
         os.makedirs(dir_graph_type, exist_ok=True)
         full_path = os.path.join(dir_graph_type, graph_name)
         return full_path
