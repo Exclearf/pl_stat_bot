@@ -180,12 +180,7 @@ def player_button_click_handler(call: CallbackQuery):
     caption += basic_data['goals'] and f"<b>Goals:</b> {basic_data['goals']}\n"
     caption += basic_data['assists'] and f"<b>Assists:</b> {basic_data['assists']}\n"
 
-    page = 0
     season = 0
-    try:
-        page = user_data[call.from_user.id][call.message.message_id]['last_search']
-    except:
-        pass
     try:
         season = user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]['last_season']
     except:
@@ -194,7 +189,6 @@ def player_button_click_handler(call: CallbackQuery):
         user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]
     except:
         user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]] = dict()
-    user_data[call.from_user.id][call.message.message_id]['last_search'] = page
     user_data[call.from_user.id][call.message.message_id][player_id.split('/')[-1]]['last_season'] = season
     markup = generate_markup_seasons(player_name=player_id.split('/')[-1], player_seasons=seasons, page=season,
                                      total_pages=total_pages, call_id=call.from_user.id, message_id=call.message.message_id)
@@ -255,8 +249,6 @@ def create_standard_stat_data_message(call: CallbackQuery):
                                media=InputMediaPhoto(image), reply_markup=keyboard)
 
 
-
-
 @bot.callback_query_handler(func=lambda call: '_statistics' in call.data)
 def player_button_click_handler(call: CallbackQuery):
     data_parts = call.data.split('_')
@@ -269,6 +261,19 @@ def player_button_click_handler(call: CallbackQuery):
             analyzer.player_graph_standard_ga(player_name)
             analyzer.player_graph_standard_cards(player_name)
             create_standard_stat_data_message(call)
+        case 'passing':
+            analyzer.player_graph_passing_assists()
+            analyzer.player_graph_passing_distance()
+        case 'shooting':
+            analyzer.player_graph_shooting()
+            # analyzer.player_graph_shooting_advanced()
+        case 'basic-gk':
+            analyzer.player_graph_bgk_penalties()
+            analyzer.player_graph_bgk_saves()
+        case 'advanced-gk':
+            analyzer.player_graph_agk()
+            analyzer.player_graph_agk_sweeper()
+            analyzer.player_graph_agk_passes()
 
 
 @bot.callback_query_handler(func=lambda call: 'display-seasons' in call.data)
