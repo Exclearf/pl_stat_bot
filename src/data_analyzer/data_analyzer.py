@@ -167,6 +167,11 @@ class DataAnalyzer:
         result = float(result) if result else 0.0
         return result
 
+    def remove_yyyy(self, seasons):
+        full_seasons = [element for element in seasons if "-" in element]
+        skipped_count = len(seasons) - len(full_seasons)
+        return full_seasons, skipped_count
+
 ########################################################################################################################
 #                                                        GRAPHS                                                        #
 ########################################################################################################################
@@ -234,10 +239,10 @@ class DataAnalyzer:
         plt.tight_layout()
         plt.legend()
         #save the graph to the player dir
-        path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'standard', 'Goals_Assists.png')
+        path = self.graph_path(unidecode(player_data["name"]), 'standard', 'Goals_Assists.png')
         plt.savefig(path)
         plt.show()
-        return DataAnalyzer().path_for_btn(path)
+        return self.path_for_btn(path)
 
     def player_graph_standard_cards(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='standard', graph_name='cards'):
@@ -282,56 +287,6 @@ class DataAnalyzer:
         plt.show()
         return DataAnalyzer().path_for_btn(path)
 
-    def player_graph_bgk_saves22(self, player_name):
-        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='bgk', graph_name='saves'):
-            return
-        player_data = self.get_player_data(player_name)
-
-        sh_att = []
-        sh_sav = []
-        cleanSheets = []
-        matches = []
-        sh_eff = []
-        seasons = []
-        great_matches = []
-
-        for season, stats in player_data["standard_goalkeeping"].items():
-            seasons.append(season)
-            sh_att.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTargetAgainst'))
-            sh_sav.append(self.get_int_performance_stats(stats, 'performance', 'saves'))
-            cleanSheets.append(self.get_int_performance_stats(stats, 'performance', 'cleanSheets'))
-            matches.append(int(self.get_float_stats(stats, 'matchesPlayed')))
-
-            # saves / shots on target
-            if sh_att[-1] != 0:
-                sh_eff.append(round((sh_sav[-1] / sh_att[-1]), 2) * 100)
-            else:
-                sh_eff.append(0.0)
-
-            if matches[-1] != 0:
-                great_matches.append(round((cleanSheets[-1] / matches[-1]), 2) * 100)
-                print(round((cleanSheets[-1] / matches[-1]), 2))
-            else:
-                great_matches.append(0.0)
-
-        print(matches)
-        print(cleanSheets)
-        print(great_matches)
-        plt.figure(figsize=(10, 6))
-        plt.plot(seasons, great_matches, linewidth=5, color='yellow', label='Clean Sheet Matches %')
-        plt.plot(seasons, sh_eff, linewidth=5, color='green', label='Shots Saved %')
-        plt.legend()
-        plt.grid(linestyle='-')
-        plt.title("Saves/Clean Sheets")
-        plt.xlabel("Season")
-        plt.ylabel("Efficiency, %")
-        plt.ylim(0, 100)
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        path = self.graph_path(unidecode(player_data["name"]), 'bgk', 'Saves.png')
-        plt.savefig(path)
-        plt.show()
-
     def player_graph_shooting(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='shots', graph_name='shots'):
             return
@@ -354,8 +309,7 @@ class DataAnalyzer:
             seasons.append(season)
             shotsOnTarget.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
             shots.append(self.get_int_performance_stats(stats, 'performance', 'shots'))
-            print(f"SHOTS {shots[-1]}")
-            print(f"ON TARGET {shotsOnTarget[-1]}")
+
             if shots[-1] != 0:
                 shot_precision.append(round((shotsOnTarget[-1] / shots[-1]), 2) * 100)
             else:
@@ -403,6 +357,69 @@ class DataAnalyzer:
         plt.savefig(path)
         plt.show()
         return DataAnalyzer().path_for_btn(path)
+
+    def player_graph_shooting_distance(self, player_name):
+        if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='shots', graph_name='shots'):
+            return
+        # distance target/shots
+        seasons = []
+        shotsOnTarget = []
+        shots = []
+        goals = []
+        averageShotDistance = []
+        shots_precision = []
+
+        player_data = self.get_player_data(player_name)
+
+        for season, stats in player_data["shooting_stats"].items():
+            seasons.append(season)
+            shotsOnTarget.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
+            shots.append(self.get_int_performance_stats(stats, 'performance', 'shots'))
+            averageShotDistance.append(self.get_float_performance_stats(stats, 'performance', 'averageShotDistance'))
+
+            if shots[-1] != 0:
+
+                shots_precision.append((round((shotsOnTarget[-1] / shots[-1]), 2)) * 100)
+            else:
+                shots_precision.append(0.0)
+
+        absolute_seasons, absolute_zero_count = self.remove_yyyy(seasons)
+
+        zero_count_distance = averageShotDistance.count(0.0)
+        seasons_with_shot_distance = seasons[zero_count_distance:]
+        averageShotDistance = averageShotDistance[zero_count_distance:]
+
+        zero_count_precision = shots_precision.count(0.0)
+        seasons_with_shot_precision = seasons[zero_count_precision:]
+        shots_precision = shots_precision[zero_count_precision:]
+
+        for season, stats in player_data["standard_stats"].items():
+            goals.append(self.get_int_performance_stats(stats, 'performance', 'goals'))
+
+        goals = goals[absolute_zero_count:]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(absolute_seasons, goals, linewidth=5, color='white', linestyle='-', label='Goals')
+        plt.plot(seasons_with_shot_distance, averageShotDistance, linewidth=5, alpha=0.5, color='green', linestyle='-', label='Average Shot Distance')
+        plt.plot(seasons_with_shot_precision, shots_precision, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
+                 label='Shots Effectiveness')
+
+
+        # Add a grid
+        plt.grid(linestyle='-')
+        # Desc
+        plt.title("Shot stats with distance by season")
+        plt.xlabel("Season")
+        plt.ylabel("Stats")
+        # rotate desc
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.legend()
+        # save the graph to the player dir
+        path = self.graph_path(unidecode(player_data["name"]), 'shots', 'Shots_Goals.png')
+        plt.savefig(path)
+        plt.show()
+        return self.path_for_btn(path)
 
     def player_graph_passing_assists(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='passing', graph_name='assists'):
@@ -803,4 +820,4 @@ print(DataAnalyzer().player_basic_data("Jordan Pickford"))
 DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 '''
 
-#DataAnalyzer().player_graph_shooting("Erling-Haaland")
+#DataAnalyzer().player_graph_shooting_distance("Kevin-De-Bruyne")
