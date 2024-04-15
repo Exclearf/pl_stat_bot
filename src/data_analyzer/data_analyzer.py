@@ -120,19 +120,14 @@ class DataAnalyzer:
     def check_graphs_age(self, player_name, graph_type, graph_name):
         player_data_filepath = '../resources/data/parsed_players/' + player_name + '/'
         if os.path.exists(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png'):
-            if os.path.exists(player_data_filepath):
-                data = self.get_player_data(player_name)
+            ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
+            c_ti = datetime.fromtimestamp(ti_c)
 
-                ti_c = os.path.getmtime(f'../resources/data/parsed_players/{player_name}/graph/{graph_type}/{graph_name}-graph.png')
-                c_ti = datetime.fromtimestamp(ti_c)
-
-                with open(player_data_filepath + player_name + '.json', 'rb') as file:
-                    if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
-                        return True
-                    else:
-                        return False
-            else:
-                return False
+            with open(player_data_filepath + player_name + '.json', 'rb') as file:
+                if c_ti > datetime.fromisoformat(json.load(file)['creationDate']):
+                    return True
+                else:
+                    return False
         else:
             return False
 
