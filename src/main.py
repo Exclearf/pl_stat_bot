@@ -16,7 +16,6 @@ import configparser
 
 
 # ! Initialization of deps
-
 load_dotenv()
 
 ITEMS_PER_SEARCH_PAGE = 5
@@ -48,16 +47,16 @@ def text_handler(message: Message):
     # Initialize data caching
     try:
         user_data[str(message.from_user.id)]
-    except:
+    except Exception:
         user_data[str(message.from_user.id)] = dict()
     try:
         user_data[str(message.from_user.id)]['isParsing']
-    except:
+    except Exception:
         user_data[str(message.from_user.id)]['isParsing'] = None
     next_message_id = message.message_id + 1
     try:
         user_data[str(message.from_user.id)][str(next_message_id)]
-    except:
+    except Exception:
         user_data[str(message.from_user.id)][str(next_message_id)] = dict()
     user_data[str(message.from_user.id)][str(next_message_id)]['data'] = player_data
     user_data[str(message.from_user.id)][str(next_message_id)]['last_caption'] = ''
@@ -203,11 +202,11 @@ def player_button_click_handler(call: CallbackQuery):
     season = 0
     try:
         season = user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]['last_season']
-    except:
+    except Exception:
         pass
     try:
         user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]
-    except:
+    except Exception:
         user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]] = dict()
     user_data[str(call.from_user.id)][str(call.message.message_id)][player_id.split('/')[-1]]['last_season'] = season
     markup = generate_markup_seasons(player_name=player_id.split('/')[-1], player_seasons=seasons, page=season,
@@ -278,36 +277,27 @@ def create_stat_data_message(call: CallbackQuery):
         case '0':
             row = [InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[0])} \U00002705", callback_data=f'__do_nothing'),
                           InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[1])}', callback_data=f'{name}_{season}_1_{graph_type}_statistic-page')]
-
             keyboard.row(*row)
             if graph_type == 'agk':
                 keyboard.add(InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[2])}', callback_data=f'{name}_{season}_2_{graph_type}_statistic-page'))
-
             image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[0]}.png'
         case '1':
             row = [InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[0])}',
                                                callback_data=f'{name}_{season}_0_{graph_type}_statistic-page'),
                           InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[1])} \U00002705', callback_data=f'__do_nothing')]
-
             keyboard.row(*row)
             if graph_type == 'agk':
                 keyboard.add(InlineKeyboardButton(text=f'{getGraphDisplayName(graph_list[2])}', callback_data=f'{name}_{season}_2_{graph_type}_statistic-page'))
-
             image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[1]}.png'
         case '2':
             row = [InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[0])}",
                                         callback_data=f'{name}_{season}_0_{graph_type}_statistic-page'),
                    InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[1])}", callback_data=f'{name}_{season}_1_{graph_type}_statistic-page')]
-
             keyboard.row(*row)
             if graph_type == 'agk':
                 keyboard.add(
                     InlineKeyboardButton(text=f"{getGraphDisplayName(graph_list[2])}  \U00002705", callback_data=f'__do_nothing'))
-
-
             image_path = f'../resources/data/parsed_players/{name}/graph/{graph_type}/{graph_list[2]}.png'
-
-
     keyboard.add(InlineKeyboardButton(text='Back', callback_data=f'{name}_{season}_display-seasons'))
     with open(image_path, 'rb') as image:
         bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
@@ -406,21 +396,18 @@ def player_button_click_handler(call: CallbackQuery):
     try:
         bot.edit_message_media(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                 media=InputMediaPhoto(user_data[str(call.from_user.id)][str(call.message.message_id)]['last_image_path']))
-    except:
+    except Exception:
         pass
-
     try:
         bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id,
                                  caption=user_data[str(call.from_user.id)][str(call.message.message_id)]['last_caption'])
-    except:
+    except Exception:
         pass
-
     page = 0
     try:
         page = user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season']
-    except:
+    except Exception:
         pass
-
     markup = generate_markup_seasons(player_name=player_name, player_seasons=seasons, page=page,
                                      total_pages=total_pages, call_id=call.from_user.id, message_id=call.message.message_id)
     bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
@@ -433,13 +420,14 @@ def callback_query_handler(call):
     player_name = call.data.split('_')[0]
     seasons = analyzer.player_years(analyzer.get_player_data(player_name))
     total_pages = math.ceil(len(seasons) / ITEMS_PER_SEASON_PAGE) - 1
+    current_page = 0
     try:
         current_page = int(call.json['message']['reply_markup']['inline_keyboard'][-2][1]['text'].split('/')[0]) - 1
-    except:
+    except Exception:
         return
     try:
         current_page = user_data[str(call.from_user.id)][str(call.message.message_id)][player_name]['last_season']
-    except:
+    except Exception:
         pass
     if "_back_player_seasons" in data:
         new_page = int(current_page) - 1
@@ -608,7 +596,7 @@ if __name__ == "__main__":
             try:
                 redo_the_images(user_id=user_choice)
             except Exception as e:
-                print("Something has gone wrong while actualizing file_ids")
+                print("Something went wrong while actualizing file_ids")
             print('Finished actualizing')
         bot.infinity_polling()
 
