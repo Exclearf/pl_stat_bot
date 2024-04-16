@@ -86,8 +86,28 @@ class Scraper:
         m.send_keys(Keys.ENTER)
         time.sleep(0.2)
 
-        results = self.driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
+        results = None
+
+        try:
+            results = self.driver.find_element(By.XPATH, '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
                                                 '2]/div[1]/a')
+        except WebDriverException:
+            self.driver.get("https://wikipedia.org/")
+            try:
+                select = Select(self.driver.find_element(By.XPATH, '//*[@id="searchLanguage"]'))
+                select.select_by_value('English')
+            except WebDriverException:
+                pass
+
+            m = self.driver.find_element(By.XPATH, '//*[@id="searchInput"]')
+            m.click()
+            m.send_keys(player.get("fullName", player["name"]) + ' footballer')
+            m.send_keys(Keys.ENTER)
+            time.sleep(0.2)
+            results = self.driver.find_element(By.XPATH,
+                                               '//*[@id="mw-content-text"]/div[*]/div[*]/ul/li[1]/table/tbody/tr/td['
+                                               '2]/div[1]/a')
+
         results.click()
         time.sleep(0.2)
 

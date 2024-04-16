@@ -43,8 +43,7 @@ def text_handler(message: Message):
     if len(player_data) == 0:
         with open('../resources/images/No footballer found.png', 'rb') as image:
             return bot.send_photo(chat_id=message.chat.id, photo=user_data['images']['No footballer found.png'])
-
-    # Initialize data caching
+        # Initialize data caching
     try:
         user_data[str(message.from_user.id)]
     except Exception:
@@ -114,20 +113,28 @@ def scrape(player_link, chat_id, message_id):
     return
 
 
-def prepare_for_scraping(player_link, chat_id, message_id):
+def prepare_for_scraping(player_link, chat_id, message_id, call_id):
     bot.edit_message_media(chat_id=chat_id, message_id=message_id,
                                media=InputMediaPhoto(user_data['images']['Waiting for a ready browser.png']))
     try:
         scrape(player_link=player_link, chat_id=chat_id, message_id=message_id)
         return True
     except TimeoutError as e:
+        user_data[call_id]['isParsing'] = False
         bot.edit_message_media(chat_id=chat_id, message_id=message_id,
                                    media=InputMediaPhoto(user_data['images']['Failed to acquire a browser.png']))
         return False
     except RuntimeError as e:
+        user_data[call_id]['isParsing'] = False
         bot.edit_message_media(chat_id=chat_id, message_id=message_id,
                                    media=InputMediaPhoto(user_data['images']["Who's that.png"]))
         return False
+    except WebDriverException:
+        user_data[call_id]['isParsing'] = False
+        bot.edit_message_media(chat_id=chat_id, message_id=message_id,
+                               media=InputMediaPhoto(user_data['images']["Error.png"]))
+        return False
+
 
 def concurrent_error_handler(call: CallbackQuery, ):
     keyboard = InlineKeyboardMarkup()
@@ -150,7 +157,7 @@ def player_button_click_handler(call: CallbackQuery):
                 else:
                     concurrent_error_handler(call)
                     return
-                success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id)
+                success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id, message_id=call.message.message_id, call_id=str(call.from_user.id))
                 user_data[str(call.from_user.id)]['isParsing'] = False
                 if not success:
                     return
@@ -161,7 +168,7 @@ def player_button_click_handler(call: CallbackQuery):
             concurrent_error_handler(call)
             return
         success = prepare_for_scraping(player_link=player_link, chat_id=call.message.chat.id,
-                                       message_id=call.message.message_id)
+                                       message_id=call.message.message_id, call_id=str(call.from_user.id))
         user_data[str(call.from_user.id)]['isParsing'] = False
         if not success:
             return
@@ -561,7 +568,7 @@ if __name__ == "__main__":
     config_name = config['DEFAULT'].get("use_config", 'DEFAULT')
 
     if config_name != 'DEFAULT':
-        user_choice = input("Custom config detected.\nType 'y' to use it: ").strip()
+        user_choice = input("Custom config detected.\nDo you want to use it?\nType 'y' to use it: ").strip()
         if user_choice.lower() not in ['yes', 'y']:
             config_name = 'DEFAULT'
 
@@ -576,9 +583,10 @@ if __name__ == "__main__":
                                 max_wait_time=config_data.get('max_wait_time', 30),
                                 headless=config_data.get('headless_mode', 'True'))
     try:
-        with driver_pool.get_driver() as driver:
-            '1'
-            #Scraper(repository, driver).prepare_dataset()
+        user_choice = input("Do you want to actualize the dataset?\nType 'y' to do it: ")
+        if user_choice.lower() in ['yes', 'y']:
+            with driver_pool.get_driver() as driver:
+                Scraper(repository, driver).prepare_dataset()
     except Exception as e:
         print('There has been an error while creating a dataset.')
         print(str(e))
@@ -589,14 +597,20 @@ if __name__ == "__main__":
                 user_data = data
         except FileNotFoundError:
             print('No user_data.json was found.')
-        user_choice = input("Do you want to actualize the file_id`s of the attachments?\nInput: ")
 
+        user_choice = input("Do you want to actualize image ID's?\nType 'y' to do it: ")
         if user_choice.lower() in ['yes', 'y']:
-            user_choice = input('Please, supply your user_id: ')
-            try:
-                redo_the_images(user_id=user_choice)
-            except Exception as e:
-                print("Something went wrong while actualizing file_ids")
+            if config_data.get('admin_account_id', False):
+                try:
+                    redo_the_images(user_id=config_data.get('admin_account_id'))
+                except Exception as e:
+                    print("Something went wrong while actualizing file_ids")
+            else:
+                user_choice = input("Please, enter the Admin ID: ")
+                try:
+                    redo_the_images(user_id=user_choice)
+                except Exception as e:
+                    print("Something went wrong while actualizing file_ids")
             print('Finished actualizing')
         bot.infinity_polling()
 
