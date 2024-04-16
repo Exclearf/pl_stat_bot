@@ -168,7 +168,7 @@ class DataAnalyzer:
         performance = stats.get(stats_type, {})
         result = performance.get(stats_data, {})
         # Convert empty strings to 0
-        result = float(result) if result else 0
+        result = float(result) if result else 0.0
         return result
 
     def get_int_stats(self, stats, stats_data):
@@ -204,42 +204,29 @@ class DataAnalyzer:
         exp_goals = []
         exp_assists = []
         seasons_with_xG = []
-        index = 0
         for season, stats in player_data["standard_stats"].items():
             seasons.append(season)
-            goals_scored.append(self.get_int_performance_stats(stats, "goals", stats))
-            if stats['performance']['goals'] == "":
-                goals_scored.append(0)
-            else:
-                goals_scored.append(int(stats['performance']["goals"]))
+            goals_scored.append(self.get_int_performance_stats(stats, "performance", 'goals'))
+            assists_made.append(self.get_int_performance_stats(stats, "performance", 'assists'))
+            exp_goals.append(self.get_float_performance_stats(stats, "performance", 'expectedGoals'))
+            exp_assists.append(self.get_float_performance_stats(stats, "performance", 'expectedAssists'))
 
-            if stats['performance']['assists'] == "":
-                assists_made.append(0)
-            else:
-                assists_made.append(int(stats['performance']["assists"]))
+        # exclude data that didnt exist back then
+        zero_count = exp_goals.count(0.0)
+        seasons_with_xG = seasons[zero_count:]
+        exp_goals = exp_goals[zero_count:]
+        exp_assists = exp_assists[zero_count:]
 
-            performance = stats.get("performance", {})
-
-            # count the number of seasons with xG introduced
-            if performance.get("expectedGoals") != "":
-                seasons_with_xG.append(season)
-            else:
-                index += 1
-
-            expected_goals_str = performance.get("expectedGoals", "0")
-            expected_assists_str = performance.get("expectedAssists", "0")
-            exp_goals.append(float(expected_goals_str) if expected_goals_str else 0.0)
-            exp_assists.append(float(expected_assists_str) if expected_assists_str else 0.0)
-
+        print(exp_goals)
+        print(exp_assists)
+        print(goals_scored)
+        print(assists_made)
+        print(seasons_with_xG)
         #create a g/a graph
         plt.figure(figsize=(10, 6))
         #create plots with goals and assists
         plt.plot(seasons, goals_scored, linewidth=5, color='red', linestyle='-', label='Goals Scored')
         plt.plot(seasons, assists_made, linewidth=5, color='green', linestyle='-', label='Assists Made')
-
-        #exclude data that doesnt suit the seasons_with_xG
-        exp_goals = exp_goals[index:len(seasons)]
-        exp_assists = exp_assists[index:len(seasons)]
 
         #Only plots for seasons with xG
         plt.plot(seasons_with_xG, exp_goals, linewidth=5, alpha=0.3, color='red', linestyle='-', label='Expected Goals')
@@ -249,9 +236,9 @@ class DataAnalyzer:
         #Add a grid
         plt.grid(linestyle='-')
         #Desc
-        plt.title("Goals scored by season")
+        plt.title("Goals/Assists Made/Expected by season")
         plt.xlabel("Season")
-        plt.ylabel("Stats")
+        plt.ylabel("Goals/Assists")
         #rotate desc
         plt.xticks(rotation=45)
         plt.tight_layout()
@@ -272,16 +259,8 @@ class DataAnalyzer:
 
         for season, stats in player_data["standard_stats"].items():
             seasons.append(season)
-
-            if stats['cards']['red'] == "":
-                red_cards.append(0)
-            else:
-                red_cards.append(int(stats['cards']["red"]))
-
-            if stats['cards']['yellow'] == "":
-                yellow_cards.append(0)
-            else:
-                yellow_cards.append(int(stats['cards']["yellow"]))
+            red_cards.append(self.get_int_performance_stats(stats, "cards", 'red'))
+            yellow_cards.append(self.get_int_performance_stats(stats, "cards", 'yellow'))
 
         # create cards graph
         plt.figure(figsize=(10, 6))
@@ -311,7 +290,7 @@ class DataAnalyzer:
 
         #shotsOnTarget/shots,  xG/matches,  goals/matches
         seasons = []
-        shotsOnTarget = []
+        shots_on_target = []
         shots = []
         goals = []
         matches = []
@@ -325,11 +304,11 @@ class DataAnalyzer:
 
         for season, stats in player_data["shooting_stats"].items():
             seasons.append(season)
-            shotsOnTarget.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
+            shots_on_target.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
             shots.append(self.get_int_performance_stats(stats, 'performance', 'shots'))
 
             if shots[-1] != 0:
-                shot_precision.append(round((shotsOnTarget[-1] / shots[-1]), 2) * 100)
+                shot_precision.append(round((shots_on_target[-1] / shots[-1]), 2) * 100)
             else:
                 shot_precision.append(0.0)
 
@@ -348,23 +327,22 @@ class DataAnalyzer:
             else:
                 exp_match_eff.append(0.0)
 
-
         zero_count = exp_match_eff.count(0.0)
         seasons_with_exp = seasons[zero_count:]
         exp_match_eff = exp_match_eff[zero_count:]
 
         plt.figure(figsize=(10, 6))
-        plt.plot(seasons, real_match_eff, linewidth=5, color='green', linestyle='-', label='Real Match Effectiveness')
+        plt.plot(seasons, real_match_eff, linewidth=5, color='yellow', linestyle='-', label='Real Match Effectiveness')
         plt.plot(seasons_with_exp, exp_match_eff, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
                  label='Expected Match Effectiveness')
-        plt.plot(seasons, shot_precision, linewidth=5, color='white', linestyle='-', label='Shot Precision')
+        plt.plot(seasons, shot_precision, linewidth=5, color='blue', linestyle='-', label='Shot Precision')
 
         # Add a grid
         plt.grid(linestyle='-')
         # Desc
-        plt.title("Shot stats by season")
+        plt.title("Shooting Effectiveness by Season")
         plt.xlabel("Season")
-        plt.ylabel("Stats, %")
+        plt.ylabel("Effectiveness, %")
         # rotate desc
         plt.xticks(rotation=45)
         plt.tight_layout()
@@ -373,38 +351,36 @@ class DataAnalyzer:
         path = DataAnalyzer().graph_path(unidecode(player_data["name"]), 'shots', 'Shots_Goals.png')
         plt.savefig(path)
         plt.show()
-        return DataAnalyzer().path_for_btn(path)
+        return self.path_for_btn(path)
 
     def player_graph_shooting_distance(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='shots', graph_name='shots'):
             return
         # distance target/shots
         seasons = []
-        shotsOnTarget = []
+        shots_on_target = []
         shots = []
         goals = []
-        averageShotDistance = []
+        average_shot_distance = []
         shots_precision = []
 
         player_data = self.get_player_data(player_name)
 
         for season, stats in player_data["shooting_stats"].items():
             seasons.append(season)
-            shotsOnTarget.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
+            shots_on_target.append(self.get_int_performance_stats(stats, 'performance', 'shotsOnTarget'))
             shots.append(self.get_int_performance_stats(stats, 'performance', 'shots'))
-            averageShotDistance.append(self.get_float_performance_stats(stats, 'performance', 'averageShotDistance'))
+            average_shot_distance.append(self.get_float_performance_stats(stats, 'performance', 'averageShotDistance'))
 
             if shots[-1] != 0:
 
-                shots_precision.append((round((shotsOnTarget[-1] / shots[-1]), 2)) * 100)
+                shots_precision.append((round((shots_on_target[-1] / shots[-1]), 2)) * 100)
             else:
                 shots_precision.append(0.0)
 
-        absolute_seasons, absolute_zero_count = self.remove_yyyy(seasons)
-
-        zero_count_distance = averageShotDistance.count(0.0)
+        zero_count_distance = average_shot_distance.count(0.0)
         seasons_with_shot_distance = seasons[zero_count_distance:]
-        averageShotDistance = averageShotDistance[zero_count_distance:]
+        average_shot_distance = average_shot_distance[zero_count_distance:]
 
         zero_count_precision = shots_precision.count(0.0)
         seasons_with_shot_precision = seasons[zero_count_precision:]
@@ -413,13 +389,11 @@ class DataAnalyzer:
         for season, stats in player_data["standard_stats"].items():
             goals.append(self.get_int_performance_stats(stats, 'performance', 'goals'))
 
-        goals = goals[absolute_zero_count:]
-
         plt.figure(figsize=(10, 6))
-        plt.plot(absolute_seasons, goals, linewidth=5, color='white', linestyle='-', label='Goals')
-        plt.plot(seasons_with_shot_distance, averageShotDistance, linewidth=5, alpha=0.5, color='green', linestyle='-',
+        plt.plot(seasons, goals, linewidth=5, color='blue', linestyle='-', label='Goals')
+        plt.plot(seasons_with_shot_distance, average_shot_distance, linewidth=5, color='yellow', linestyle='-',
                  label='Average Shot Distance')
-        plt.plot(seasons_with_shot_precision, shots_precision, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
+        plt.plot(seasons_with_shot_precision, shots_precision, linewidth=5, color='green', linestyle='-',
                  label='Shots Effectiveness')
 
         # Add a grid
@@ -441,50 +415,64 @@ class DataAnalyzer:
     def player_graph_passing_assists(self, player_name):
         if self.check_graphs_age(player_name.replace(' ', '-'), graph_type='passing', graph_name='assists'):
             return
-        player_data = DataAnalyzer().get_player_data(player_name)
+        player_data = self.get_player_data(player_name)
 
+        seasons = []
+        passes_att = []
+        passes_com = []
+        matches = []
         assists_made = []
         exp_assists = []
-        seasons_with_xG = []
-        seasons = []
+        real_match_eff = []
+        exp_match_eff = []
+        pass_precision = []
+        seasons_with_exp = []
         index = 0
+
+        for season, stats in player_data["passing_stats"].items():
+            seasons.append(season)
+            passes_att.append(self.get_int_performance_stats(stats, 'performance', 'passesAttempted'))
+            passes_com.append(self.get_int_performance_stats(stats, 'performance', 'passesCompleted'))
+
+            if passes_att[-1] != 0:
+                pass_precision.append(round((passes_com[-1] / passes_att[-1]), 2) * 100)
+            else:
+                pass_precision.append(0.0)
 
         #get the xA and Assists
         for season, stats in player_data["standard_stats"].items():
-            seasons.append(season)
-            if stats['performance']['assists'] == "":
-                assists_made.append(0)
+            assists_made.append(self.get_int_performance_stats(stats, "performance", 'assists'))
+            exp_assists.append(self.get_float_performance_stats(stats, "performance", 'expectedAssists'))
+            matches.append(self.get_int_stats(stats, 'matchesPlayed'))
+
+            if matches[-1] != 0:
+                real_match_eff.append(round((assists_made[-1] / matches[-1]), 2) * 100)
             else:
-                assists_made.append(int(stats['performance']["assists"]))
+                real_match_eff.append(0.0)
 
-            performance = stats.get("performance", {})
-
-            # count the number of seasons with xG introduced
-            if performance.get("expectedGoals") != "":
-                seasons_with_xG.append(season)
+            if matches[-1] != 0:
+                exp_match_eff.append(round((exp_assists[-1] / matches[-1]), 2) * 100)
             else:
-                index += 1
+                exp_match_eff.append(0.0)
 
-            expected_assists_str = performance.get("expectedAssists", "0")
-            exp_assists.append(float(expected_assists_str) if expected_assists_str else 0.0)
+        zero_count = exp_assists.count(0.0)
+        seasons_with_exp = seasons[zero_count:]
+        exp_match_eff = exp_match_eff[zero_count:]
+        pass_precision = pass_precision[zero_count:]
 
         plt.figure(figsize=(10, 6))
-
-        plt.plot(seasons, assists_made, linewidth=5, color='green', linestyle='-', label='Assists Made')
-
-        # exclude data that doesnt suit the seasons_with_xG
-        exp_assists = exp_assists[index:len(seasons)]
-
-        # Only plots for seasons with xG
-        plt.plot(seasons_with_xG, exp_assists, linewidth=5, alpha=0.3, color='green', linestyle='-',
-                 label='Expected Assists')
-
+        plt.plot(seasons, real_match_eff, linewidth=5, color='yellow', linestyle='-',
+                 label='Real Match Effectiveness')
+        plt.plot(seasons_with_exp, pass_precision, linewidth=5, color='blue', linestyle='-', label='Pass Precision')
+        plt.plot(seasons_with_exp, exp_match_eff, linewidth=5, alpha=0.5, color='yellow', linestyle='-',
+                 label='Expected Match Effectiveness')
+        
         # Add a grid
         plt.grid(linestyle='-')
         # Desc
-        plt.title("Assists and passes by season")
+        plt.title("Assists Effectiveness by season")
         plt.xlabel("Season")
-        plt.ylabel("Stats")
+        plt.ylabel("Effectiveness, %")
         # rotate desc
         plt.xticks(rotation=45)
         plt.tight_layout()
@@ -544,9 +532,9 @@ class DataAnalyzer:
         seasons_with_distance = seasons[zero_count:]
 
         plt.figure(figsize=(10, 6))
-        plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green', label='Short')
-        plt.plot(seasons_with_distance, mid_eff, linewidth=5, color='red', label='Medium')
-        plt.plot(seasons_with_distance, long_eff, linewidth=5, color='blue', label='Long')
+        plt.plot(seasons_with_distance, short_eff, linewidth=5, color='green', label='Short Passes')
+        plt.plot(seasons_with_distance, mid_eff, linewidth=5, color='yellow', label='Medium Passes')
+        plt.plot(seasons_with_distance, long_eff, linewidth=5, color='blue', label='Long Passes')
 
         plt.legend()
         plt.grid(linestyle='-')
@@ -597,23 +585,18 @@ class DataAnalyzer:
                 sh_eff.append(round(sh_sav[-1] / sh_att[-1], 2) * 100)
 
         zero_count = pen_att.count(0)
-        pen_att = pen_att[zero_count:]
-        pen_sav = pen_sav[zero_count:]
         pen_eff = pen_eff[zero_count:]
-
-        sh_att = sh_att[zero_count:]
-        sh_sav = sh_sav[zero_count:]
         sh_eff = sh_eff[zero_count:]
         seasons_with_data = seasons[zero_count:]
 
         plt.figure(figsize=(10, 6))
-        plt.plot(seasons_with_data, sh_eff, linewidth=5, color='red', label='Shots Saving')
-        plt.plot(seasons_with_data, pen_eff, linewidth=5, color='blue', label='Penalties Saving')
+        plt.plot(seasons_with_data, sh_eff, linewidth=5, color='green', label='Shots Saving Efficiency')
+        plt.plot(seasons_with_data, pen_eff, linewidth=5, color='blue', label='Penalties Saving Efficiency')
         plt.legend()
         plt.grid(linestyle='-')
         plt.title("Penalties/Shots Saving Efficiency")
         plt.xlabel("Season")
-        plt.ylabel("Penalties/Shots Saving Efficiency, %")
+        plt.ylabel("Efficiency, %")
         plt.ylim(0, 100)
         plt.xticks(rotation=45)
         plt.tight_layout()
@@ -821,7 +804,7 @@ class DataAnalyzer:
 
 
 
-'''
+        '''
 options = Options()
 user_agent_string = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
 options.add_argument(f"user-agent={user_agent_string}")
@@ -858,9 +841,8 @@ print(DataAnalyzer().player_basic_data("Jordan Pickford"))
 DataAnalyzer().player_graph_bgk_saves("Jordan Pickford")
 DataAnalyzer().player_graph_agk_passes("Jordan Pickford")
 analyzer = DataAnalyzer()
-'''
-
-
-
+analyzer = DataAnalyzer()
+analyzer.player_graph_bgk_saves("Jordan Pickford")
 #DataAnalyzer().player_graph_shooting_distance("Kevin-De-Bruyne")
 #print(DataAnalyzer().player_season_data("Jordan Pickford", '2021-2022'))
+'''
