@@ -184,14 +184,10 @@ class DataAnalyzer:
         result = float(result) if result else 0.0
         return result
 
-    def remove_yyyy(self, seasons):
-        full_seasons = [element for element in seasons if "-" in element]
-        skipped_count = len(seasons) - len(full_seasons)
-        return full_seasons, skipped_count
 
-    ########################################################################################################################
-    #                                                        GRAPHS                                                        #
-    ########################################################################################################################
+########################################################################################################################
+#                                                        GRAPHS                                                        #
+########################################################################################################################
 
     def player_graph_standard_ga(self, player_name):
 
